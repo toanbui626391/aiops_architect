@@ -8,44 +8,7 @@ The **Splunk Connector** operates via two complementary patterns:
 1. **Push Forwarding (Splunk HEC)**: Real-time forwarding of high-priority error logs, security notables, and POS anomalies to **Cloud Pub/Sub**.
 2. **On-Demand Forensic Query Proxy**: Context-aware REST API queries executed autonomously by the Gemini SRE Agent during an active incident to extract $\pm 10$ minutes of deep server logs.
 
-```mermaid
-flowchart TD
-    subgraph Splunk_Fleet["Splunk Enterprise Fleet"]
-        direction TB
-        Splunk_Indexers["📚 <b>Splunk Indexers</b><br/>Enterprise, POS & SIEM Logs"]
-        Splunk_SearchHead["🔍 <b>Search Head / REST API</b><br/>Targeted SPL Query Execution"]
-    end
 
-    subgraph GCP_Ingress["GCP Ingestion & Proxy Layer"]
-        direction TB
-        HEC_Proxy["🛡️ <b>HEC Proxy (Cloud Run)</b><br/>Token Auth & Rate Limiting"]
-        ForensicProxy["🤖 <b>Forensic Query Proxy (Cloud Run)</b><br/>Targeted SPL Generator"]
-        PubSub["📬 <b>Cloud Pub/Sub</b><br/><code>telemetry.splunk.raw</code>"]
-    end
-
-    subgraph GCP_Core["GCP Intelligence Core"]
-        direction TB
-        Dataflow["⚙️ <b>Dataflow Pipeline</b>"]
-        ContextAgent["🤖 <b>Context-Aware SRE Agent</b>"]
-        SNOW["🎫 <b>ServiceNow Ticket</b>"]
-    end
-
-    Splunk_Indexers -->|HTTPS Push (HEC Forwarder)| HEC_Proxy
-    HEC_Proxy --> PubSub
-    PubSub --> Dataflow
-
-    ContextAgent -->|1. Trigger SPL Query (time ±10m)| ForensicProxy
-    ForensicProxy <-->|2. Execute SPL via REST API| Splunk_SearchHead
-    ForensicProxy -->|3. Attach Summarized Forensics| SNOW
-
-    classDef s fill:#ECEFF1,stroke:#37474F,stroke-width:2px,color:#263238;
-    classDef g fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
-    classDef a fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40;
-
-    class Splunk_Indexers,Splunk_SearchHead s;
-    class HEC_Proxy,ForensicProxy,PubSub,Dataflow,ContextAgent g;
-    class SNOW a;
-```
 
 ---
 

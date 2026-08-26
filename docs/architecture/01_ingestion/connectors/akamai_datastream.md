@@ -6,18 +6,7 @@
 
 The **Akamai DataStream 2 Connector** captures real-time HTTP edge performance, TLS negotiation metrics, Web Application Firewall (WAF) triggers, and Bot Management scores, streaming them directly into the GCP AIOps Core with sub-10 second latency.
 
-```mermaid
-flowchart TD
-    AkamaiEdge["🌐 <b>Akamai Edge CDN</b><br/>Global Edge Nodes"] -->|HTTPS Push (DataStream 2)| CloudRunProxy["🛡️ <b>Cloud Run Proxy</b><br/>HMAC & Token Verification"]
-    CloudRunProxy -->|Stream JSON Batches| PubSub["📬 <b>Cloud Pub/Sub</b><br/><code>telemetry.akamai.raw</code>"]
-    PubSub --> Dataflow["⚙️ <b>Dataflow Pipeline</b><br/>Canonical Normalization & DLP"]
 
-    classDef a fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C;
-    classDef g fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
-
-    class AkamaiEdge a;
-    class CloudRunProxy,PubSub,Dataflow g;
-```
 
 ---
 

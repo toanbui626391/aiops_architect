@@ -9,47 +9,7 @@ The **Dynatrace Connector** provides a dual-channel ingestion pipeline into GCP:
 2. **Periodic Topology Graph Synchronization**: Scheduled REST API synchronization that updates the runtime dependency topology in BigQuery.
 3. **OpenTelemetry Trace Export**: High-volume span and trace forwarding for error and p99 latency calls.
 
-```mermaid
-flowchart TD
-    subgraph Dynatrace["Dynatrace SaaS Fleet"]
-        direction TB
-        Davis["🤖 <b>Davis AI Engine</b><br/>Problem Events & RCA"]
-        Smartscape["🗺️ <b>Smartscape Graph</b><br/>Topology & Entity Metadata"]
-        PurePath["⚡ <b>PurePath Traces</b><br/>OTel Spans & Call Stacks"]
-    end
 
-    subgraph GCP_Ingress["GCP Ingress & Ingestion"]
-        direction TB
-        WebhookProxy["🛡️ <b>Webhook Gateway (Cloud Run)</b>"]
-        TopoSyncJob["⚙️ <b>Topology Sync (Cloud Run Job)</b>"]
-        OTelCollector["📡 <b>OpenTelemetry Collector</b>"]
-        PubSub["📬 <b>Cloud Pub/Sub</b><br/><code>telemetry.dynatrace.raw</code>"]
-    end
-
-    subgraph Core["GCP Core"]
-        BQ[("🗄️ <b>BigQuery</b><br/>Topology & Problem Tables")]
-        AI["🧠 <b>Vertex AI Agent</b>"]
-    end
-
-    Davis -->|HTTP Problem Webhook| WebhookProxy
-    Smartscape <-->|Scheduled REST Pull (/api/v2/entities)| TopoSyncJob
-    PurePath -->|OTLP gRPC Export| OTelCollector
-
-    WebhookProxy --> PubSub
-    OTelCollector --> PubSub
-    TopoSyncJob -->|Sync Entity Graph| BQ
-
-    PubSub --> AI
-    BQ <--> AI
-
-    classDef d fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1;
-    classDef g fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
-    classDef b fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C;
-
-    class Davis,Smartscape,PurePath d;
-    class WebhookProxy,TopoSyncJob,OTelCollector,PubSub g;
-    class BQ,AI b;
-```
 
 ---
 

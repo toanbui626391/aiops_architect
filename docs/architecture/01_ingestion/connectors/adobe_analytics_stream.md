@@ -6,47 +6,7 @@
 
 The **Adobe Analytics Connector** bridges the gap between digital retail business health and IT operational monitoring. By ingesting streaming clickstream and business transaction events into GCP, the AIOps platform enables **Silent Outage Detection**—detecting when business revenue drops due to UI/client bugs even when backend infrastructure returns HTTP 200 OK.
 
-```mermaid
-flowchart TD
-    subgraph Adobe_Digital["Adobe Experience Cloud"]
-        direction TB
-        AEP["⚡ <b>AEP Streaming Ingestion</b><br/>Live Cart & Order Events"]
-        DataFeeds["📦 <b>Raw Clickstream Feeds</b><br/>Hourly Batch Feeds (GCS)"]
-    end
 
-    subgraph GCP_Ingestion["GCP Ingestion & Processing"]
-        direction TB
-        Proxy["🛡️ <b>AEP Gateway (Cloud Run)</b>"]
-        PubSub["📬 <b>Cloud Pub/Sub</b><br/><code>telemetry.adobe.raw</code>"]
-        Dataflow["⚙️ <b>Dataflow Pipeline</b>"]
-        BQ[("🗄️ <b>BigQuery Lakehouse</b>")]
-    end
-
-    subgraph Intelligence["AIOps Business Intelligence"]
-        direction TB
-        BQML["📈 <b>BQML ARIMA_PLUS</b><br/>Continuous OPM Baseline"]
-        Router["🧠 <b>Semantic Router</b>"]
-        SNOW["🎫 <b>ServiceNow P1 Incident</b>"]
-    end
-
-    AEP -->|HTTP Streaming Push| Proxy
-    DataFeeds -->|Direct Batch Upload| BQ
-    Proxy --> PubSub
-    PubSub --> Dataflow
-    Dataflow --> BQ
-
-    BQ -->|1-min OPM Aggregates| BQML
-    BQML -->|Revenue Drop Anomaly| Router
-    Router -->|P1 Business Outage Ticket| SNOW
-
-    classDef a fill:#FFEBEE,stroke:#C62828,stroke-width:2px,color:#B71C1C;
-    classDef g fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
-    classDef i fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40;
-
-    class AEP,DataFeeds a;
-    class Proxy,PubSub,Dataflow,BQ g;
-    class BQML,Router,SNOW i;
-```
 
 ---
 

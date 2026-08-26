@@ -6,39 +6,7 @@ The **Google Cloud Operations Suite Connector** provides real-time, native inges
 
 Because telemetry resides natively within Google Cloud, ingestion achieves **sub-second latency with zero egress cost**, providing foundational health metrics and audit logs for the entire AIOps platform.
 
-```mermaid
-flowchart TD
-    subgraph GCP_Workloads["GCP Infrastructure & Platform Services"]
-        direction TB
-        GKE["☸️ <b>GKE Clusters</b><br/>Pod health, CPU/Mem, Restarts"]
-        Pipelines["⚙️ <b>Dataflow & Pub/Sub</b><br/>Backlog age & system lag"]
-        Audit["🔒 <b>Cloud Audit Logs</b><br/>Admin config & deploy events"]
-    end
 
-    subgraph Native_Ingest["Native Ingestion Mechanisms"]
-        direction TB
-        LogSink["🚰 <b>Log Router Sink</b><br/>Filtered Pub/Sub Export"]
-        GMP["📈 <b>Managed Service for Prometheus</b><br/>Metric Export Engine"]
-    end
-
-    subgraph Core_Bus["GCP AIOps Event Bus"]
-        PubSub["📬 <b>Cloud Pub/Sub</b><br/><code>telemetry.gcp.raw</code>"]
-    end
-
-    GKE & Audit --> LogSink
-    GKE & Pipelines --> GMP
-
-    LogSink --> PubSub
-    GMP --> PubSub
-
-    classDef w fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
-    classDef i fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C;
-    classDef b fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
-
-    class GKE,Pipelines,Audit w;
-    class LogSink,GMP i;
-    class PubSub b;
-```
 
 ---
 
