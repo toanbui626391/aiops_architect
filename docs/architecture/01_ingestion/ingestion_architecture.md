@@ -1,165 +1,198 @@
 # Ingestion Layer & Streaming Pipelines Architecture
 
-This document outlines the **Enterprise AIOps Ingestion Engine**, which captures telemetry from various observability sources, processes it in real-time, and routes it to downstream analytics and incident response systems.
+This document outlines the **Enterprise AIOps Ingestion Engine**, which captures high-throughput telemetry from multi-cloud and edge observability sources, standardizes and sanitizes it in real time, and routes it to downstream analytics and incident response systems natively on **Google Cloud Platform (GCP)**.
 
 ---
 
-## 1. Simplified Architecture Overview
+## 1. High-Level Ingestion Architecture
 
-The architecture follows a streamlined, connector-based approach to securely ingest data from hybrid and multi-cloud environments. The design ensures high throughput, strict security (via API Keys), and real-time processing.
+The ingestion architecture follows a decoupled, connector-based pattern capable of handling 150,000 to 500,000+ Events Per Second (EPS) with sub-second latency and zero data loss.
 
 ```mermaid
 flowchart TD
-    %% Sources
-    Sources[("<b>Observability Sources</b><br/>(Akamai, Dynatrace, Splunk, Adobe, Legacy, GCP)")]
-    
-    %% Connectors
-    subgraph Connectors ["1. Ingestion Connector Layer (GCP)"]
-        direction TB
-        Push["⚙️ <b>Push Connectors (Cloud Run)</b><br/>API Key Auth for Modern SaaS"]
-        Pull["🏃‍♂️ <b>Pull Connectors (Cloud Composer)</b><br/>Airflow DAGs for Legacy DBs"]
-        Native["🚦 <b>Native Connectors (Log Router)</b><br/>Direct Routing for GCP Ops"]
-    end
-    
-    %% Robustness Layer
-    subgraph Robustness ["Robustness & Governance"]
-        direction TB
-        SchemaReg["📝 <b>Schema Registry</b><br/>Protobuf / Avro Enforcement"]
-        Monitor["👀 <b>Cloud Monitoring & Alerting</b><br/>SLIs: Lag, Un-acked msgs, DLQ Depth"]
+    %% SOURCES
+    subgraph Sources["1. SRE Observability Sources"]
+        direction LR
+        S1["🌐 <b>Akamai</b><br/>DataStream 2 Push"]
+        S2["⚡ <b>Dynatrace</b><br/>Webhooks & OTel"]
+        S3["📜 <b>Splunk</b><br/>HEC Push"]
+        S4["🛍️ <b>Adobe</b><br/>AEP Streaming"]
+        S5["☁️ <b>GCP Ops</b><br/>GKE & Audit Logs"]
+        S6["🏢 <b>Legacy DBs</b><br/>Air-gapped / On-Prem"]
     end
 
-    %% Event Bus
-    PubSub["📬 <b>Cloud Pub/Sub</b><br/>Isolated Topics (Multi-Region)"]
-    
-    %% Stream Processing
-    Dataflow["⚙️ <b>Cloud Dataflow (Apache Beam)</b><br/>Deduplication, DLP, Normalization & Validation"]
-    
-    %% Bad Data & Sinks
-    subgraph Sinks ["2. Sinks & Action Layers"]
+    %% INGESTION CONNECTORS
+    subgraph Connectors["2. Ingestion Connector Layer (GCP)"]
         direction TB
-        BQ[("🗄️ <b>BigQuery</b><br/>Analytics Lakehouse")]
-        GCS[("📦 <b>Cloud Storage (Archive)</b><br/>Parquet Cold Archive")]
-        DLQ[("🗑️ <b>Cloud Storage (DLQ)</b><br/>Malformed & Rejected Payloads")]
-        Action["🧠 <b>Vertex AI & ServiceNow</b><br/>Automated Incident Response"]
+        subgraph PushTier["Cloud Run Push Connectors - Cloud Armor WAF"]
+            Push["⚙️ <b>Push Connector Cluster</b><br/>• HMAC-SHA256 & API Key Auth<br/>• Wire Decompression - gzip/zstd<br/>• Backpressure 429 Flow Control"]
+        end
+        subgraph PullTier["Cloud Composer - Apache Airflow"]
+            Pull["🏃‍♂️ <b>Pull Connector DAGs</b><br/>Scheduled VPN/Interconnect extractions"]
+        end
+        subgraph NativeTier["Native GCP Log Router"]
+            Native["🚦 <b>Log Sinks</b><br/>Direct zero-compute routing"]
+        end
     end
 
-    %% Flow
-    Sources --> Push
-    Sources --> Pull
-    Sources --> Native
-    
+    %% BUFFER & GOVERNANCE
+    subgraph EventBus["3. Decoupled Buffer & Governance"]
+        direction TB
+        PubSub["📬 <b>Cloud Pub/Sub Topics</b><br/>Multi-Region Topics by Source"]
+        SchemaReg["📝 <b>Pub/Sub Schema Registry</b><br/>Protobuf / Avro Contracts"]
+        Monitor["👀 <b>Cloud Monitoring - SLIs</b><br/>Lag & Unacked Message Alerts"]
+    end
+
+    %% STREAM PROCESSING
+    subgraph StreamEngine["4. Unified Cloud Dataflow Pipeline - Apache Beam"]
+        direction TB
+        DLP["🔒 <b>Hybrid DLP Engine</b><br/>Regex + Cloud DLP PII/PCI Scrubbing"]
+        Norm["🔄 <b>OTel Canonical Normalization</b><br/>Deduplication in 10m sliding window"]
+        Splitter{"🔀 Stream Filter"}
+    end
+
+    %% SINKS & ACTION
+    subgraph Sinks["5. Storage & Action Sinks"]
+        direction TB
+        BQ[("🗄️ <b>BigQuery Hot Lakehouse</b><br/>Partitioned & Clustered")]
+        GCS[("📦 <b>GCS Cold Archive</b><br/>Parquet / Iceberg - ZSTD")]
+        AlertTopic["📬 <b>Actionable Alert Bus</b><br/><code>aiops.alerts.actionable</code> ➔ Vertex AI"]
+        DLQ_GCS[("🗑️ <b>Cloud Storage DLQ</b><br/>Quarantined Malformed Payloads")]
+    end
+
+    %% INGESTION FLOWS
+    S1 & S2 & S3 & S4 --> Push
+    S6 --> Pull
+    S5 --> Native
+
     Push --> PubSub
     Pull --> PubSub
     Native --> PubSub
+
+    PubSub -.->|Validate Schema| SchemaReg
+    Monitor -.->|Alert on SLI Breaches| PubSub
+
+    PubSub --> DLP
+    DLP --> Norm
+    Norm --> Splitter
+
+    Splitter -->|All Normalized Telemetry| BQ
+    Splitter -->|Hourly Micro-batches| GCS
+    Splitter -->|Severity >= WARN / Anomalies| AlertTopic
     
-    PubSub -.->|Schema Validation| SchemaReg
-    Dataflow -.->|Dynamic Type Checking| SchemaReg
-    Monitor -.->|Observes| PubSub
-    Monitor -.->|Observes| Dataflow
+    PubSub -.->|Transport Failures - >5 Retries| DLQ_GCS
+    Norm -.->|Parsing & Schema Failures| DLQ_GCS
 
-    PubSub --> Dataflow
-    PubSub -->|Un-ack'd Dead Letters| DLQ
-    Dataflow -->|Parsing/Validation Errors| DLQ
-    
-    Dataflow --> BQ
-    Dataflow --> GCS
-    Dataflow --> Action
+    %% STYLING
+    classDef srcStyle fill:#ECEFF1,stroke:#37474F,stroke-width:2px,color:#263238;
+    classDef conStyle fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1;
+    classDef psStyle fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C;
+    classDef dfStyle fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C;
+    classDef sinkStyle fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
+    classDef dlqStyle fill:#FFEBEE,stroke:#C62828,stroke-width:2px,color:#B71C1C;
 
-    %% Styling
-    classDef srcStyle fill:#ECEFF1,stroke:#37474F,stroke-width:2px;
-    classDef conStyle fill:#E3F2FD,stroke:#1565C0,stroke-width:2px;
-    classDef psStyle fill:#FFF3E0,stroke:#E65100,stroke-width:2px;
-    classDef dfStyle fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px;
-    classDef sinkStyle fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px;
-    classDef robStyle fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef dlqStyle fill:#FFEBEE,stroke:#C62828,stroke-width:2px;
-
-    class Sources srcStyle;
+    class S1,S2,S3,S4,S5,S6 srcStyle;
     class Push,Pull,Native conStyle;
-    class PubSub psStyle;
-    class Dataflow dfStyle;
-    class BQ,GCS,Action sinkStyle;
-    class SchemaReg,Monitor robStyle;
-    class DLQ dlqStyle;
+    class PubSub,SchemaReg,Monitor psStyle;
+    class DLP,Norm,Splitter dfStyle;
+    class BQ,GCS,AlertTopic sinkStyle;
+    class DLQ_GCS dlqStyle;
 ```
 
 ---
 
-## 2. The Connector Architecture
+## 2. The Ingestion Connector Layer
 
-We utilize three specialized connector patterns to ingest telemetry securely into GCP. 
+Telemetry sources exhibit different networking capabilities and security constraints. We utilize three distinct connector patterns to ingest telemetry securely into GCP:
 
-### 2.1 Push Connectors (Modern SaaS & Edge)
-Used by sources that can push webhooks in real-time (**Akamai**, **Dynatrace**, **Splunk HEC**, **Adobe Analytics**).
-* **Ingress**: Traffic enters via **Cloud Armor WAF** (IP Allowlisting & Rate Limiting).
-* **Compute**: Stateless **Cloud Run** services.
-* **Authentication**: Requires secure **API Keys** passed in HTTP headers (`Authorization: Bearer <API_KEY>`). The keys are validated in real-time against **GCP Secret Manager**.
-* **Action**: Batches validated payloads and publishes to Cloud Pub/Sub.
+### 2.1 Push Connectors (Modern SaaS & Edge Ingress)
+Used by sources capable of real-time outbound streaming (**Akamai DataStream 2**, **Dynatrace Webhooks**, **Splunk HEC**, **Adobe Analytics AEP**).
+* **Ingress Security**: Traffic passes through **Cloud Armor WAF** with strict IP allowlisting (filtering for vendor CIDR ranges) and volumetric DDoS rate limiting.
+* **Compute Layer**: Auto-scaling, stateless **Cloud Run** container services deployed across multiple zones.
+* **Authentication & Webhook Validation**:
+  * **API Keys & Tokens**: Verified dynamically against **GCP Secret Manager** with in-memory caching.
+  * **HMAC-SHA256 Signatures**: Validates webhook payload authenticity using vendor signature headers (e.g., `X-Akamai-Signature`, `X-Adobe-Signature`) to prevent request spoofing.
+* **Wire Compression**: Enforces `Content-Encoding: gzip` / `zstd` on inbound streams, reducing cross-cloud data transfer volume and egress bandwidth costs by up to 70%.
+* **Backpressure & Flow Control**: If downstream Pub/Sub publishing encounters transient backpressure, Cloud Run returns `HTTP 429 (Too Many Requests)` or `HTTP 503` with a `Retry-After` header, prompting upstream SaaS forwarders to buffer and retry exponentially.
 
 ### 2.2 Pull Connectors (Legacy & Air-Gapped Systems)
-Used by on-premise relational databases or air-gapped systems that cannot push outbound traffic.
-* **Orchestration**: **Cloud Composer (Apache Airflow)** schedules and runs Directed Acyclic Graphs (DAGs) to periodically extract data.
-* **Network**: Queries run securely over a **Cloud VPN** or **Cloud Interconnect**.
-* **Action**: Uses pre-built Airflow operators to extract delta records, convert them to JSON, and publish to Cloud Pub/Sub (or drop into Cloud Storage for downstream processing).
-* **Advantage**: Easier to maintain, debug, and monitor complex data extraction pipelines using the Airflow UI, with a massive ecosystem of pre-built operators for legacy systems.
+Used by on-premise relational databases, mainframes, or network appliances that cannot push outbound traffic.
+* **Orchestration**: **Cloud Composer (Managed Apache Airflow)** schedules and executes extraction DAGs.
+* **Networking**: Traffic travels over private, encrypted tunnels via **Cloud VPN** or **Cloud Interconnect**.
+* **Extraction & Retries**: Airflow operators extract delta records, convert them to canonical JSON/Avro, and publish to Cloud Pub/Sub with automatic exponential backoff retries.
 
 ### 2.3 Native Connectors (GCP Operations Suite)
-Used natively by **Google Kubernetes Engine (GKE)** and **Cloud Audit Logs**.
-* **Mechanism**: Leverages **Cloud Logging Log Router Sinks** to route logs natively.
-* **Advantage**: Zero-compute ingestion with sub-second latency and no egress costs.
+Used natively by Google Cloud Platform workloads (**Google Kubernetes Engine (GKE)**, **Cloud Run**, **Cloud Audit Logs**).
+* **Mechanism**: Leverages **Cloud Logging Log Router Sinks** pointing directly to Cloud Pub/Sub topics.
+* **Advantage**: Zero-compute, zero-maintenance ingestion with sub-second delivery latency and zero egress cost.
 
 ---
 
 ## 3. Decoupled Buffer & Stream Processing
 
-### 3.1 Cloud Pub/Sub (The Event Bus)
-* **Isolation**: Each connector publishes to a dedicated topic (e.g., `telemetry.akamai.raw`). This prevents traffic spikes in one source from impacting others.
-* **Resilience**: Features Dead-Letter Queues (DLQ) to catch and isolate unparseable or malformed payloads.
+### 3.1 Cloud Pub/Sub (The Multi-Region Event Bus)
+* **Topic Isolation**: Dedicated, isolated topics per source (e.g., `telemetry.akamai.raw`, `telemetry.dynatrace.raw`, `telemetry.splunk.raw`) prevent single-source traffic storms (such as a DDoS attack logged by Akamai) from starving other telemetry streams.
+* **Multi-Region Durability**: Topics are configured with multi-region message routing policies to ensure continuous ingestion availability during single-region GCP outages.
 
-### 3.2 Cloud Dataflow (Apache Beam)
-A unified streaming pipeline processes all telemetry in real-time:
-1. **Deduplication**: Removes duplicate events using a 10-minute sliding window.
-2. **Hybrid DLP Engine**: Masks sensitive PII/PCI data using fast in-memory regex (for credit cards/SSNs) and the Cloud DLP API (for unstructured text).
-3. **Normalization**: Converts all varied telemetry formats into a standard canonical schema.
-4. **Routing**: Delivers clean data to BigQuery, GCS, and high-severity alerts to ServiceNow.
+### 3.2 Cloud Dataflow (Unified Apache Beam Streaming Pipeline)
+A unified, horizontally auto-scaling streaming pipeline processes incoming telemetry in four sequential stages:
 
----
+```mermaid
+flowchart LR
+    In["📬 Pub/Sub Stream"] --> DLP["🔒 Step 1: Hybrid DLP Engine<br/>PII/PCI Masking"]
+    DLP --> Norm["🔄 Step 2: Canonical Normalization<br/>OTel Common Data Model"]
+    Norm --> Dedup["⏱️ Step 3: Sliding Deduplication<br/>10-Minute Windowing"]
+    Dedup --> Split{"🔀 Step 4: Stream Splitter"}
 
-## 4. Reliability & Robustness Patterns
+    Split -->|Bulk Telemetry| BQ_GCS["🗄️ BigQuery & GCS Parquet Lakehouse"]
+    Split -->|Severity >= WARN or Anomaly| AlertTopic["📬 <code>aiops.alerts.actionable</code> ➔ Vertex AI"]
 
-To ensure enterprise-grade ingestion, the architecture implements several robust engineering patterns:
+    classDef step fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C;
+    classDef sink fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
 
-### 4.1 Schema Management & Evolution
-As source APIs (like Dynatrace or Splunk) evolve, breaking schema changes can cascade and fail Dataflow jobs or BigQuery inserts. 
-* **Mechanism**: We utilize the **Pub/Sub Schema Registry** supporting Protobuf and Avro. 
-* **Validation**: Connectors are required to conform to the registered schema before publishing. Dataflow jobs also query the registry to dynamically handle backward-compatible schema evolutions (e.g., adding a new field) without requiring pipeline restarts.
+    class In,DLP,Norm,Dedup,Split step;
+    class BQ_GCS,AlertTopic sink;
+```
 
-### 4.2 Bad Data Handling (Dead-Letter Queues - DLQs)
-Invalid JSON, corrupted payloads, or unauthorized events must not block the main processing stream.
-* **Pub/Sub DLQs**: If Dataflow cannot acknowledge a message (e.g., severe crashing on a payload) after 5 delivery attempts, Pub/Sub routes it to a native Pub/Sub DLQ topic.
-* **Dataflow Side-Outputs**: If a payload parses successfully but fails validation (e.g., missing required `timestamp`), the `DoFn` emits the record to a dedicated "side-output".
-* **Storage**: Both streams route bad records to a dedicated **Cloud Storage DLQ Bucket** for inspection, alerting, and eventual replay.
-
-### 4.3 Failure Tolerance & Resiliency
-* **Multi-Region Routing**: Critical telemetry topics are configured for cross-region routing to ensure ingestion survives a single GCP zone/region outage.
-* **Task Retries**: Cloud Composer DAGs (Pull Connectors) utilize Airflow's built-in exponential backoff retries for transient API failures.
-* **Auto-Scaling**: Cloud Dataflow Streaming pipelines are configured with Auto-scaling (up to a defined `maxNumWorkers`) to gracefully absorb massive traffic spikes (e.g., DDoS attacks logged by Akamai).
-
-### 4.4 Pipeline Observability & Alerting
-The ingestion pipelines must be strictly monitored to prevent "silent failures" where data stops flowing.
-* **Service Level Indicators (SLIs)**: 
-  * Pub/Sub: `oldest_unacked_message_age` (Target: < 5 minutes).
-  * Dataflow: `system_lag` and `data_watermark_age`.
-  * DLQ Depth: Alert if DLQ bucket size increases rapidly.
-* **Alerting Engine**: **Cloud Monitoring** continuously tracks these SLIs. Violations trigger alerts routed directly to ServiceNow (via webhook) to page the internal Data Platform SRE team.
+1. **Hybrid DLP Engine**: Fast, in-memory regex tokenizers redact high-risk payment card numbers (PCI-DSS) and social security numbers. Unstructured log bodies are asynchronously scrubbed using the **Cloud Data Loss Prevention (DLP) API**.
+2. **Canonical Normalization**: Standardizes disparate formats (Akamai JSON, Splunk HEC, Dynatrace PurePath, Adobe clickstream) into an **OpenTelemetry-aligned canonical schema** (`aiops_lakehouse.telemetry_canonical`).
+3. **Sliding Window Deduplication**: Removes duplicate events within a 10-minute sliding window based on `(source_tool, source_event_id, timestamp)`.
+4. **Intelligent Stream Splitting**:
+   * **Bulk Analytical Stream**: Routes 100% of clean telemetry to BigQuery (Hot Tier) and GCS Parquet (Cold Tier).
+   * **Actionable Alert Stream**: High-severity anomalies and warning events (`severity >= WARN` or Davis AI problems) are extracted and published to the high-priority Pub/Sub topic `aiops.alerts.actionable` for consumption by the **Vertex AI Semantic Router**.
 
 ---
 
-## 5. Sub-Modules & Detailed Guides
+## 4. Reliability, Robustness & Governance Patterns
 
-For granular details on specific source connectors, refer to the individual connector documentation:
+### 4.1 Schema Management & Dynamic Evolution
+* **Pub/Sub Schema Registry**: Enforces Protobuf and Avro schema contracts at topic ingress.
+* **Schema Drift Protection**: Incoming records that introduce backward-compatible fields are parsed dynamically into `raw_attributes JSON`, preventing Dataflow worker crashes while preserving full fidelity.
+
+### 4.2 Multi-Tier Dead-Letter Queues (DLQs)
+To prevent unparseable or poisoned payloads from blocking the pipeline:
+1. **Transport-Level DLQ (Pub/Sub)**: If Dataflow fails to acknowledge a message after 5 delivery attempts, Pub/Sub diverts it to a native dead-letter topic (`telemetry.*.dlq`).
+2. **Application-Level DLQ (Dataflow Side-Output)**: Payloads that parse structurally but fail semantic validation (e.g., corrupted timestamps) are emitted via Beam side-outputs.
+3. **Storage & Replay**: Both DLQ streams persist to a date-partitioned **Cloud Storage DLQ Bucket** (`gs://aiops-dlq-bucket/YYYY/MM/DD/`) for offline inspection, alerting, and automated replay.
+
+### 4.3 Ingestion Service Level Indicators (SLIs) & Alerting
+The platform team continuously monitors pipeline health in **Cloud Monitoring**:
+
+| Metric Name | Target SLI | Alert Severity | Action upon Breach |
+| :--- | :--- | :--- | :--- |
+| **`oldest_unacked_message_age`** | $< 5$ minutes | **P1 (Critical)** | Pages Data Platform SRE via ServiceNow webhook |
+| **`dataflow/system_lag`** | $< 120$ seconds | **P2 (Major)** | Triggers automated worker auto-scaling |
+| **`dataflow/watermark_age`** | $< 180$ seconds | **P2 (Major)** | Alerts on upstream source timestamp drift |
+| **`dlq_message_count`** | $< 100$ msgs/hour | **P3 (Warning)** | Flags upstream schema violation for review |
+
+---
+
+## 5. Sub-Modules & Connector References
+
+For granular implementation guides and code samples for each source connector:
 * [Akamai DataStream Connector](connectors/akamai_datastream.md)
 * [Dynatrace Ingestion Connector](connectors/dynatrace_ingestion.md)
 * [GCP Operations Ingestion Connector](connectors/gcp_ops_ingestion.md)
 * [Splunk HEC Connector](connectors/splunk_hec_ingestion.md)
 * [Adobe Analytics Streaming Connector](connectors/adobe_analytics_stream.md)
+* [Ingestion Best Practices Guide](ingestion_best_practices.md)
