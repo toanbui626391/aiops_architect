@@ -55,7 +55,7 @@ flowchart TD
     BQ_MV <--> BQML
     BQ_Hot <--> Gemini
     BQ_MV <--> Gemini
-    Vertex <-->|Semantic Search (Tool_RAG_Search)| Gemini
+    Vertex <-->|Tool_RAG_Search Semantic Lookups| Gemini
     BQ_Warm <--> Spark
     GCS_Cold <--> Spark
 

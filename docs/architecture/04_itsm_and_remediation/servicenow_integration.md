@@ -49,7 +49,7 @@ flowchart TD
     IncidentRecord -->|4. Page On-Call| OnCall
     OnCall -->|5. Approve Action| OneClick
     OneClick --> FlowDesigner
-    FlowDesigner -.->|6. Execute Approved Action (HMAC Signed)| RemediationRunner
+    FlowDesigner -.->|6. Execute Approved Action - HMAC Signed| RemediationRunner
     RemediationRunner -->|7. Post Execution Result| IncidentRecord
 
     IncidentRecord -->|8. SRE Closes Ticket & Rates AI| BusinessRule

@@ -126,3 +126,18 @@ flowchart TD
 | **Data & Pipeline Engineers** | 1. [ingestion_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_architecture.md)<br/>2. [source_telemetry_matrix.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/source_telemetry_matrix.md)<br/>3. [data_contracts_and_schemas.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>4. [data_processing_and_feature_store.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md) |
 | **SRE & Operations Engineers** | 1. [source_telemetry_matrix.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/source_telemetry_matrix.md)<br/>2. [servicenow_integration.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_itsm_and_remediation/servicenow_integration.md)<br/>3. [ingestion_best_practices.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_best_practices.md) |
 | **Security & Compliance** | 1. [data_contracts_and_schemas.md#dlp](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>2. [aiops_intelligence_layer.md#guardrails](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/03_intelligence_and_reasoning/aiops_intelligence_layer.md) |
+
+---
+
+## 📄 Exported PDF Specifications
+
+All architectural domain specifications are available as presentation-ready PDF documents with rendered Mermaid diagrams, syntax-highlighted code blocks, and GitHub-style callouts:
+
+* 📚 **Consolidated Master Blueprint**: [`docs/pdf/Enterprise_AIOps_Platform_Complete_Architecture_Master.pdf`](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/pdf/Enterprise_AIOps_Platform_Complete_Architecture_Master.pdf)
+* 📑 **Individual Domain PDFs**: Located in the [`docs/pdf/`](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/pdf/) directory.
+
+To re-export all architecture documents to PDF at any time, run:
+```bash
+node scripts/export_docs_to_pdf.js
+```
+
