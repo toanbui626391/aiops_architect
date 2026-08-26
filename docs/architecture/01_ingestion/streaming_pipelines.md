@@ -1,88 +1,126 @@
 # End-to-End Ingestion & Streaming Pipelines
 
-This document details the complete ingestion lifecycle—from securely extracting raw telemetry at the source to processing it in real-time with Google Cloud Dataflow.
+This document details the complete ingestion lifecycle—from securely extracting raw telemetry at external multi-cloud and on-premise sources to processing it in real-time with Google Cloud Dataflow. This architecture adheres to the core principles of high-throughput scalability, event-driven decoupling, and zero single points of failure.
 
 ---
 
-## 1. First-Mile Source Ingestion
+## 1. First-Mile Source Ingestion (Cross-Cloud & Hybrid)
 
-To securely extract telemetry from external SRE tools into GCP Pub/Sub, we utilize three standard patterns:
+To securely extract telemetry from external SRE tools (spanning AWS, Azure, on-premise, and edge networks) into GCP Pub/Sub, we utilize three standard ingestion patterns:
 
-1. **Push-Based API Gateway (Modern SaaS)**: Tools (Akamai, Dynatrace, Adobe, Splunk) push JSON payloads to a **Cloud Run API Gateway** protected by Cloud Armor (WAF). The gateway authenticates requests using **API Keys** stored in Secret Manager and publishes to Pub/Sub.
-2. **Pull-Based Polling (Legacy Systems)**: **Cloud Scheduler** triggers a containerized Cloud Run Job that paginates legacy APIs/databases and batches records into Pub/Sub.
-3. **Direct Cloud Integration (GCP Native)**: GCP native telemetry (GKE, Cloud Audit) uses **Cloud Logging Sinks** to route directly to Pub/Sub with no intermediate compute.
+### 1.1 Push-Based API Gateway (Modern SaaS)
+The primary method for modern observability tools (e.g., Dynatrace, Akamai DataStream, Adobe Analytics, Splunk).
+* **Mechanism**: Source systems actively HTTP `POST` JSON/Protobuf payloads to a public-facing GCP endpoint via webhooks or HTTP Event Collectors (HEC).
+* **GCP Infrastructure**: A **Cloud Run API Gateway** deployed behind a Global External HTTP(S) Load Balancer equipped with **Cloud Armor (WAF)**.
+* **Security & Auth**: Requests are authenticated using **API Keys (Bearer Tokens)**. Keys are dynamically resolved from **Secret Manager**, programmatically rotated every 30-90 days, and protected by Cloud Armor IP Allowlisting and strict token-bucket rate limiting.
 
-> [!CAUTION]
-> **Security Perimeter**: API Keys are programmatically rotated every 30-90 days, protected by Cloud Armor IP Allowlisting, and subject to strict rate limits to prevent DoS attacks.
+### 1.2 Pull-Based Polling (Legacy & On-Premise)
+For legacy databases or older on-premise monitoring systems that cannot push data.
+* **Mechanism**: GCP actively queries the legacy system's APIs or databases on a fixed schedule.
+* **GCP Infrastructure**: **Cloud Scheduler** triggers a containerized **Cloud Run Job**, which paginates legacy APIs and publishes batched records into Pub/Sub.
+
+### 1.3 Direct Cloud Integration (GCP Native)
+For telemetry generated within the GCP core (e.g., GKE metrics, Cloud Audit Logs).
+* **Mechanism**: Native **Cloud Logging Log Router Sinks** securely route logs directly into Pub/Sub with zero intermediate compute or latency.
 
 ---
 
-## 2. Stream Processing (Cloud Dataflow)
+## 2. Cloud Pub/Sub Event Bus (Decoupling Layer)
 
-Once data securely lands in the Cloud Pub/Sub topics (`telemetry.<source>.raw`), a centralized **Cloud Dataflow (Apache Beam)** pipeline performs exactly-once stream processing across 6 core stages:
+To ensure fault isolation and act as a "shock absorber" during high-traffic events (e.g., Black Friday surges), all first-mile ingestion flows into dedicated, decoupled Cloud Pub/Sub topics.
 
-1. **Multi-Topic Ingest**: Subscribes to the fleet of Pub/Sub topics.
-2. **Parser & Validator**: Parses JSON/Protobuf and drops schema-invalid records to a Dead-Letter Queue (DLQ).
-3. **Stateful Deduplication**: Uses a 10-minute sliding window to drop retried/duplicate webhooks.
-4. **Cloud DLP Scrubbing**: Batches and sends payloads to the Cloud DLP API to mask PII/PCI data.
-5. **Canonical Normalization**: Maps diverse tool schemas into the unified `AIOpsCanonicalEvent` structure.
+### 2.1 Topic Sizing & Partitions
+| Topic Name | Purpose | Message Retention | Dead-Letter Topic (DLQ) |
+| :--- | :--- | :--- | :--- |
+| `telemetry.akamai.raw` | High-volume edge access & security logs | 7 days | `telemetry.akamai.dlq` |
+| `telemetry.dynatrace.raw` | PurePath traces & Davis AI webhooks | 7 days | `telemetry.dynatrace.dlq` |
+| `telemetry.gcp.raw` | GCP Ops, GKE metrics & audit sinks | 7 days | `telemetry.gcp.dlq` |
+| `telemetry.splunk.raw` | Splunk HEC forwarder logs | 7 days | `telemetry.splunk.dlq` |
+| `telemetry.adobe.raw` | AEP clickstream & business funnel events | 7 days | `telemetry.adobe.dlq` |
+| `aiops.alerts.actionable` | Downstream: Enriched alerts for Vertex AI | 14 days | `aiops.alerts.dlq` |
+
+### 2.2 Dead-Letter Queues (Poison Message Isolation)
+Each subscription enforces a strict Dead-Letter Queue (DLQ) policy. After 5 unsuccessful delivery or Dataflow processing attempts, messages are diverted to `telemetry.<source>.dlq` for forensic analysis, ensuring the main pipeline never halts.
+
+---
+
+## 3. Stream Processing (Cloud Dataflow)
+
+A centralized **Cloud Dataflow (Apache Beam)** pipeline performs exactly-once stream processing across 6 core stages:
+
+1. **Multi-Topic Ingest (`PubsubIO`)**: Subscribes to the fleet of raw Pub/Sub topics.
+2. **Parser & Validator**: Parses incoming JSON/Protobuf and enforces schema validation against the Canonical Schema. Invalid records are side-output to the DLQ.
+3. **Stateful Deduplication**: Uses Apache Beam `@StateId` and a 10-minute sliding window to deduplicate retried webhooks (hash of `source + event_id + timestamp`).
+4. **Cloud DLP Scrubbing**: Asynchronously batches text payloads to the **Cloud DLP API** to redact PCI/PII data (e.g., credit cards, passwords) before downstream storage.
+5. **Canonical Normalization**: Translates diverse tool schemas into a unified, cross-domain `AIOpsCanonicalEvent` Avro record.
 6. **Sinks & Routing**: 
-   - Writes the clean canonical stream to **BigQuery** (Storage Write API).
-   - Routes high-priority actionable alerts to the `aiops.alerts.actionable` topic for the Vertex AI Intelligence layer.
+   - **Data Lake (BigQuery)**: Streams valid canonical events to partitioned BigQuery tables using the Storage Write API.
+   - **Cold Storage (GCS)**: Outputs hourly batched archives in **Parquet format** for efficient ML training storage.
+   - **Actionable AI (Pub/Sub)**: Routes high-severity anomalies to the `aiops.alerts.actionable` topic, which feeds the Vertex AI Intelligence layer and subsequently **ServiceNow** for automated ITSM incident creation.
 
 ---
 
-## 3. End-to-End Architecture Diagram
+## 4. End-to-End Architecture Diagram
 
 ```mermaid
 flowchart TD
     %% 1. SOURCES
     subgraph Sources["1. SRE Observability Sources"]
         direction TB
-        SaaS["Modern SaaS<br/>(Akamai, Dynatrace, Splunk)"]
-        Legacy["Legacy On-Prem"]
+        SaaS["Modern SaaS (Push)<br/>(Akamai, Dynatrace, Splunk)"]
+        Legacy["Legacy On-Prem (Pull)"]
         GCPNative["GCP Operations"]
     end
 
     %% 2. GATEWAY
     subgraph Gateway["2. Ingestion Gateway (First-Mile)"]
-        WAF["🛡️ Cloud Armor + LB"]
+        direction TB
+        WAF["🛡️ Cloud Armor WAF + LB"]
         CR["⚙️ Cloud Run API Gateway<br/>(API Key Auth)"]
         Poll["⏱️ Cloud Scheduler Poller"]
         Sink["🚦 Cloud Log Router"]
+        Secrets[("🔐 Secret Manager")]
     end
 
     %% 3. PUB/SUB
     subgraph PubSub["3. Pub/Sub Event Bus"]
-        Topics["📬 Source Topics<br/>(e.g., telemetry.akamai.raw)"]
+        direction TB
+        Topics["📬 Source Topics<br/>(telemetry.*.raw)"]
+        DLQ["🚨 Dead-Letter Queues<br/>(telemetry.*.dlq)"]
     end
 
     %% 4. DATAFLOW
     subgraph Dataflow["4. Cloud Dataflow Engine"]
         direction TB
-        DF["<b>Beam Pipeline</b><br/>1. Read<br/>2. Validate<br/>3. Deduplicate<br/>4. Cloud DLP Scrub<br/>5. Normalize Canonical"]
+        DF["<b>Apache Beam Pipeline</b><br/>1. Multi-Topic Ingest<br/>2. Schema Validation<br/>3. Stateful Deduplication<br/>4. Cloud DLP Scrubbing<br/>5. Canonical Normalization"]
     end
 
     %% 5. SINKS
     subgraph Sinks["5. Analytics & AI Sinks"]
+        direction TB
         BQ[("🗄️ BigQuery Lakehouse")]
-        AI["🧠 aiops.alerts.actionable<br/>(Vertex AI Topic)"]
+        GCS[("📦 GCS Cold Storage<br/>(Parquet)")]
+        AI["🧠 aiops.alerts.actionable<br/>(To Vertex AI & ServiceNow)"]
     end
 
     %% CONNECTIONS
     SaaS -->|"Webhook Push"| WAF
     WAF --> CR
+    CR -.->|"Verify Keys"| Secrets
     CR --> Topics
     
-    Poll -->|"Pull APIs"| Legacy
+    Poll -->|"API Pagination"| Legacy
     Poll --> Topics
 
     GCPNative --> Sink
     Sink --> Topics
 
     Topics --> DF
-    DF --> BQ
-    DF --> AI
+    DF -.->|"Invalid/Failed"| DLQ
+    
+    DF -->|"Raw Archive"| GCS
+    DF -->|"Canonical Stream"| BQ
+    DF -->|"Anomalies"| AI
 
     %% STYLING
     classDef ext fill:#ECEFF1,stroke:#37474F,stroke-width:2px,color:#263238;
@@ -91,16 +129,24 @@ flowchart TD
     classDef df fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C;
 
     class SaaS,Legacy,GCPNative ext;
-    class WAF,CR,Poll,Sink,BQ,AI gcp;
-    class Topics ps;
+    class WAF,CR,Poll,Sink,Secrets,BQ,GCS,AI gcp;
+    class Topics,DLQ ps;
     class DF df;
 ```
 
 ---
 
-## 4. Performance & Autoscaling
+## 5. Performance, Autoscaling & Observability
 
-The ingestion architecture is designed as a highly elastic "shock absorber":
-* **Peak Throughput**: Tested to handle 460,000+ Events Per Second during promotional surges (e.g., Black Friday).
-* **Elastic Scaling**: Dataflow dynamically scales from 10 to 100 `n2-standard-4` workers based on the Pub/Sub backlog (`oldest_unacked_message_age`) and CPU utilization.
-* **Latency**: End-to-end processing latency (Source $\rightarrow$ Pub/Sub $\rightarrow$ Dataflow $\rightarrow$ BigQuery) is consistently maintained under 3 seconds (p99).
+To adhere to strict reliability and observability standards, the pipeline is fully self-monitored:
+
+### 5.1 Elastic Autoscaling
+* **Peak Throughput**: Architected to absorb 460,000+ Events Per Second during peak retail events.
+* **Elastic Scaling**: Dataflow dynamically scales from 10 up to 100 `n2-standard-4` workers based on the Pub/Sub backlog (`oldest_unacked_message_age`) and CPU utilization.
+* **Latency SLA**: End-to-end processing (Source $\rightarrow$ Pub/Sub $\rightarrow$ Dataflow $\rightarrow$ Sink) is maintained under 3 seconds (p99).
+
+### 5.2 System Observability
+The AIOps pipeline is instrumented with GCP Cloud Monitoring to alert on its own health:
+1. `dataflow.googleapis.com/job/system_lag`: Alerts if processing lag exceeds 30 seconds.
+2. `pubsub.googleapis.com/subscription/oldest_unacked_message_age`: Alerts if the shock absorber backlog exceeds 60 seconds.
+3. **DLQ Alert**: Alerts the Data Engineering on-call team via ServiceNow if the Dead-Letter Queue receives $> 10$ messages per minute.
