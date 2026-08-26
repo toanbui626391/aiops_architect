@@ -59,31 +59,24 @@ const DOCUMENTS = [
   },
   {
     id: '05',
-    title: 'BigQuery Lakehouse & Analytical Storage Architecture',
+    title: 'Unified Lakehouse, Data Processing & AI Feature Store Architecture',
     domain: '02_storage_and_lakehouse',
-    file: '02_storage_and_lakehouse/lakehouse_architecture.md',
-    pdfName: '05_Lakehouse_and_Analytical_Storage_Architecture.pdf'
+    file: '02_storage_and_lakehouse/lakehouse_and_feature_store.md',
+    pdfName: '05_Unified_Lakehouse_and_AI_Feature_Store.pdf'
   },
   {
     id: '06',
-    title: 'Data Processing & AI Feature Preparation Architecture',
-    domain: '02_storage_and_lakehouse',
-    file: '02_storage_and_lakehouse/data_processing_and_feature_store.md',
-    pdfName: '06_Data_Processing_and_AI_Feature_Preparation.pdf'
-  },
-  {
-    id: '07',
     title: 'Autonomous Gemini SRE Agent & Supportive Reasoning Layer',
     domain: '03_intelligence_and_reasoning',
     file: '03_intelligence_and_reasoning/aiops_intelligence_layer.md',
-    pdfName: '07_Autonomous_Gemini_SRE_Agent_and_Reasoning_Layer.pdf'
+    pdfName: '06_Autonomous_Gemini_SRE_Agent_and_Reasoning_Layer.pdf'
   },
   {
-    id: '08',
+    id: '07',
     title: 'ServiceNow ITSM Integration, CMDB Sync & HITL Remediation',
     domain: '04_itsm_and_remediation',
     file: '04_itsm_and_remediation/servicenow_integration.md',
-    pdfName: '08_ServiceNow_ITSM_Integration_and_Remediation.pdf'
+    pdfName: '07_ServiceNow_ITSM_Integration_and_Remediation.pdf'
   }
 ];
 

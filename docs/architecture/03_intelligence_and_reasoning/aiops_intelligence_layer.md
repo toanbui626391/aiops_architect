@@ -6,7 +6,7 @@ The **AIOps Intelligence & Reasoning Layer** is the cognitive core of the platfo
 
 Instead of deploying fragmented LLMs and disconnected execution engines, this layer centers around a unified **Autonomous Gemini SRE Agent** equipped with a specialized **Supportive Agentic Tool Suite**, **Semantic Memory**, **Model Armor Guardrails**, and **Context Caching**.
 
-The agent consumes structured `Incident Signature Payloads` emitted by the [Data Processing & Feature Preparation Layer](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md) and autonomously executes a 4-phase reasoning plan to triage incidents, isolate root causes, run non-destructive diagnostics, and update **ServiceNow**.
+The agent consumes structured `Incident Signature Payloads` emitted by the [Unified Lakehouse & AI Feature Store Layer](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_and_feature_store.md) and autonomously executes a 4-phase reasoning plan to triage incidents, isolate root causes, run non-destructive diagnostics, and update **ServiceNow**.
 
 ```mermaid
 flowchart TD
@@ -221,6 +221,5 @@ flowchart LR
 
 This agent-centric specification interfaces directly with:
 * [Platform Overview & End-to-End Blueprint](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/00_overview/aiops_platform_overview.md)
-* [Data Processing & Feature Preparation Architecture](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md)
-* [Unified Lakehouse Architecture](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_architecture.md)
+* [Unified Lakehouse & AI Feature Store Architecture](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_and_feature_store.md)
 * [ServiceNow Integration & Remediation Guide](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_itsm_and_remediation/servicenow_integration.md)
