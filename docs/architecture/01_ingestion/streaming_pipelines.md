@@ -174,10 +174,10 @@ To prevent malformed payloads ("poison pills") from causing infinite retry loops
 The streaming processing tier runs an autoscaling **Apache Beam** pipeline on **Google Cloud Dataflow (Streaming Engine)** implementing a unified 6-stage transformation graph.
 
 ```mermaid
-flowchart LR
+flowchart TD
     %% DATAFLOW INTERNAL STAGES
     subgraph Beam_Graph["Apache Beam 6-Stage Execution Graph"]
-        direction LR
+        direction TB
         S1["<b>Stage 1: Multi-Topic Ingest</b><br/>PubsubIO.readMessagesWithAttributes()"]
         S2["<b>Stage 2: Schema Validation</b><br/>JSON Schema vs. Side-Output DLQ"]
         S3["<b>Stage 3: Stateful Deduplication</b><br/>10-min Sliding Window & Hash State"]
@@ -186,9 +186,11 @@ flowchart LR
         S6["<b>Stage 6: Windowing & Egress</b><br/>Event-Time Windows + Storage Write API"]
     end
 
+    DLQ_Sink["🚨 <b>Side-Output: Dead-Letter Queue</b><br/>telemetry.dlq"]
+
     S1 --> S2
-    S2 -->|Valid Records| S3
-    S2 -->|Malformed| DLQ_Sink["Side-Output: DLQ"]
+    S2 -->|"Valid Records"| S3
+    S2 -.->|"Malformed Payload"| DLQ_Sink
     S3 --> S4
     S4 --> S5
     S5 --> S6
@@ -256,11 +258,21 @@ To support both instant AI root-cause analysis and cost-effective long-term ML t
 The ingestion infrastructure is self-monitoring using GCP Cloud Monitoring metrics linked to ServiceNow:
 
 ```mermaid
-flowchart LR
-    M1["dataflow/system_lag > 30s"] --> AlertRouter["Cloud Monitoring Alert Policy"]
-    M2["pubsub/oldest_unacked_age > 60s"] --> AlertRouter
-    M3["DLQ Message Rate > 10/min"] --> AlertRouter
-    AlertRouter --> SNOW["ServiceNow P2 Incident (Data Engineering On-Call)"]
+flowchart TD
+    subgraph Health_Metrics["Ingestion Pipeline Health Metrics"]
+        direction TB
+        M1["⏱️ <b>Dataflow System Lag</b><br/><code>dataflow/system_lag > 30s</code>"]
+        M2["📬 <b>Pub/Sub Backlog Age</b><br/><code>pubsub/oldest_unacked_age > 60s</code>"]
+        M3["🚨 <b>Poison Message Surge</b><br/><code>DLQ Message Rate > 10/min</code>"]
+    end
+
+    AlertRouter["🔔 <b>Cloud Monitoring Alert Policy</b><br/>Multi-condition incident aggregation"]
+    SNOW["🎫 <b>ServiceNow P2 Incident</b><br/>Dispatched to Data Engineering On-Call"]
+
+    M1 --> AlertRouter
+    M2 --> AlertRouter
+    M3 --> AlertRouter
+    AlertRouter --> SNOW
 ```
 
 1. **Pipeline Processing Lag**: Alert triggered if `dataflow.googleapis.com/job/system_lag` exceeds `30 seconds`.

@@ -10,7 +10,7 @@ All telemetry is ingested into **Google Cloud Platform (GCP)**, where it is clea
 flowchart TD
     %% PRODUCERS
     subgraph Producers["1. Observability Producers"]
-        direction LR
+        direction TB
         Akamai["🌐 <b>Akamai</b><br/>Edge Logs & Security"]
         Adobe["🛍️ <b>Adobe Analytics</b><br/>Clickstream & OPM"]
         Dyna["⚡ <b>Dynatrace</b><br/>PurePath & Davis AI"]
@@ -34,7 +34,7 @@ flowchart TD
 
     %% SINKS & CONSUMERS
     subgraph Sinks["4. Downstream Sinks"]
-        direction LR
+        direction TB
         BQ[("🗄️ <b>BigQuery Lakehouse</b><br/>Partitioned Telemetry Tables")]
         GCS[("📦 <b>GCS Cold Storage</b><br/>Compressed Parquet Archives")]
         AI_Bus["🧠 <b>Pub/Sub: <code>aiops.alerts.actionable</code></b><br/>Semantic Router & Gemini Agent"]
