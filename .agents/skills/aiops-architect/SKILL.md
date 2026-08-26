@@ -31,7 +31,9 @@ When asked to design or evaluate an AIOps architecture, follow these steps syste
 
 ### 3. Deliverables
 - **Architecture Diagram**: Always provide a Mermaid diagram illustrating the high-level architecture, showing multi-cloud sources feeding into GCP processing and outputting to ServiceNow.
-  - **CRITICAL MERMAID RULE**: To prevent rendering errors, you MUST quote node labels containing special characters like parentheses, slashes, or spaces (e.g., `id["Label (Extra Info)"]` instead of `id[Label (Extra Info)]`). Additionally, place all edge connections between nodes outside and at the bottom of the `subgraph` declarations.
+  - **CRITICAL MERMAID RULE**: To prevent rendering errors, you MUST quote node labels containing special characters like parentheses, slashes, or spaces (e.g., `id["Label (Extra Info)"]` instead of `id[Label (Extra Info)]`). 
+    - **Edge Labels**: Do NOT use parentheses or HTML tags in edge labels (e.g., use `-->|HTTPS Push - HEC Forwarder|` instead of `-->|HTTPS Push (HEC Forwarder)|`) as they cause parsing errors.
+    - Additionally, place all edge connections between nodes outside and at the bottom of the `subgraph` declarations.
   - **Layout & Orientation**: Prefer vertical layouts (`flowchart TD` and subgraphs with `direction TB`) whenever horizontal diagrams (`flowchart LR`) become too wide or difficult to view on standard screens. Keep complex multi-stage pipelines vertically oriented to optimize readability.
   - **Styling**: Use Mermaid `style` or `classDef` directives to apply distinct colors differentiating core components (e.g., AWS vs GCP vs ServiceNow).
 - **Component Rationale**: Detail the chosen technologies and the technical rationale behind them.
