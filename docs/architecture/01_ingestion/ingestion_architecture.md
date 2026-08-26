@@ -17,7 +17,7 @@ flowchart TD
     subgraph Connectors ["1. Ingestion Connector Layer (GCP)"]
         direction TB
         Push["⚙️ <b>Push Connectors (Cloud Run)</b><br/>API Key Auth for Modern SaaS"]
-        Pull["🏃‍♂️ <b>Pull Connectors (Cloud Run Job)</b><br/>Cron Polling for Legacy DBs"]
+        Pull["🏃‍♂️ <b>Pull Connectors (Cloud Composer)</b><br/>Airflow DAGs for Legacy DBs"]
         Native["🚦 <b>Native Connectors (Log Router)</b><br/>Direct Routing for GCP Ops"]
     end
     
@@ -79,9 +79,10 @@ Used by sources that can push webhooks in real-time (**Akamai**, **Dynatrace**, 
 
 ### 2.2 Pull Connectors (Legacy & Air-Gapped Systems)
 Used by on-premise relational databases or air-gapped systems that cannot push outbound traffic.
-* **Orchestration**: **Cloud Scheduler** triggers a **Cloud Run Job** every minute.
+* **Orchestration**: **Cloud Composer (Apache Airflow)** schedules and runs Directed Acyclic Graphs (DAGs) to periodically extract data.
 * **Network**: Queries run securely over a **Cloud VPN** or **Cloud Interconnect**.
-* **Action**: Extracts delta records (tracking a high-watermark), converts them to JSON, and publishes to Cloud Pub/Sub.
+* **Action**: Uses pre-built Airflow operators to extract delta records, convert them to JSON, and publish to Cloud Pub/Sub (or drop into Cloud Storage for downstream processing).
+* **Advantage**: Easier to maintain, debug, and monitor complex data extraction pipelines using the Airflow UI, with a massive ecosystem of pre-built operators for legacy systems.
 
 ### 2.3 Native Connectors (GCP Operations Suite)
 Used natively by **Google Kubernetes Engine (GKE)** and **Cloud Audit Logs**.
