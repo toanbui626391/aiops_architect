@@ -49,9 +49,9 @@ flowchart TD
     GHA -->|Push Markdown| GCS_Docs
     GCS_Docs -.->|Vertex Embedding API| Vertex
 
-    BQ_Hot -->|Automatic Aging (30d)| BQ_Warm
+    BQ_Hot -->|Automatic Aging - 30d| BQ_Warm
     BQ_Hot -.->|Pre-compute Rollups| BQ_MV
-    BQ_Warm -->|Lifecycle Policy (365d)| GCS_Cold
+    BQ_Warm -->|Lifecycle Policy - 365d| GCS_Cold
 
     BQ_MV <--> BQML
     BQ_Hot <--> Router
