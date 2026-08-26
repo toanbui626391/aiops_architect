@@ -2,7 +2,7 @@
 
 ## 1. Executive Overview
 
-The **AIOps Intelligence Layer** is the reasoning core of the platform, running natively on **Google Cloud Platform (Vertex AI & BigQuery ML)**. It transforms normalized telemetry streams into actionable operational decisions, performing:
+The **AIOps Intelligence Layer** is the reasoning core of the platform, running natively on **Google Cloud Platform (Vertex AI & BigQuery ML)**. It transforms curated features, topology graphs, and incident signatures prepared by the [Data Processing & Feature Preparation Layer](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md) into actionable operational decisions, performing:
 1. **Semantic Alert Routing & De-Noising**: Clustering cascading alert storms into single root cause incidents.
 2. **Context-Aware SRE Agent Execution**: Leveraging Gemini models to perform cross-source RCA and diagnostic runbook retrieval.
 3. **Automated SOP Diagnostics**: Executing non-destructive verification steps and attaching synthesized evidence to **ServiceNow**.
@@ -157,3 +157,11 @@ flowchart TD
 1. **AST-Based SQL Validation**: Strict parser blocks destructive SQL (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `MERGE`). Only read-only `SELECT` queries with mandatory `LIMIT` ($\le 100$) are allowed.
 2. **HTTP Method Restrictions**: External diagnostic API calls are restricted exclusively to idempotent `GET` requests. Mutating methods (`POST`, `PUT`, `PATCH`, `DELETE`) are blocked at the gateway.
 3. **Timeout & Resource Quotas**: Diagnostic queries are limited to a hard 15-second execution timeout and maximum 1 GB BigQuery scan limit.
+
+---
+
+## 8. Related Architectural Specifications
+
+* [Data Processing & AI Feature Preparation](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md)
+* [Unified Lakehouse Architecture](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_architecture.md)
+* [ServiceNow Integration & Remediation Guide](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_itsm_and_remediation/servicenow_integration.md)
