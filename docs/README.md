@@ -13,9 +13,9 @@ docs/
     ├── 00_overview/
     │   └── aiops_platform_overview.md                 # 🏛️ High-Level Platform Design, Business Context & End-to-End Flows
     ├── 01_ingestion/
-    │   ├── README.md                                  # ⚡ Ingestion Master Guide: Topologies, Scale, SLAs & HA
+    │   ├── README.md                                  # ⚡ Ingestion Module Overview & Directory Index
+    │   ├── ingestion_architecture.md                  # ⚙️ Ingestion Master Blueprint: First-Mile & Streaming Pipelines
     │   ├── data_contracts_and_schemas.md              # 📜 Canonical Event Schemas (CEF/JSON/Parquet) & Cloud DLP
-    │   ├── streaming_pipelines.md                     # ⚙️ Cloud Pub/Sub & Cloud Dataflow Stream Processing Architecture
     │   └── connectors/
     │       ├── akamai_datastream.md                   # 🌐 Akamai DataStream 2 (Edge/Security) Ingestion
     │       ├── dynatrace_ingestion.md                 # ⚡ Dynatrace (APM/PurePath/Smartscape) Ingestion
@@ -122,6 +122,6 @@ flowchart TD
 | Role / Focus Area | Recommended Reading Path |
 | :--- | :--- |
 | **Enterprise AI Architects** | 1. [aiops_platform_overview.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/00_overview/aiops_platform_overview.md)<br/>2. [aiops_intelligence_layer.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/03_intelligence_and_reasoning/aiops_intelligence_layer.md)<br/>3. [lakehouse_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_architecture.md) |
-| **Data & Pipeline Engineers** | 1. [01_ingestion/README.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/README.md)<br/>2. [streaming_pipelines.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/streaming_pipelines.md)<br/>3. [data_contracts_and_schemas.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md) |
+| **Data & Pipeline Engineers** | 1. [ingestion_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_architecture.md)<br/>2. [data_contracts_and_schemas.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>3. [lakehouse_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_architecture.md) |
 | **SRE & Tool Administrators** | 1. [observability_tools_guide.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_observability_ecosystem/observability_tools_guide.md)<br/>2. [Connectors Directory](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/connectors/)<br/>3. [servicenow_integration.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/05_itsm_and_remediation/servicenow_integration.md) |
-| **Security & Compliance** | 1. [data_contracts_and_schemas.md#dlp](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>2. [01_ingestion/README.md#security](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/README.md) |
+| **Security & Compliance** | 1. [data_contracts_and_schemas.md#dlp](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>2. [ingestion_architecture.md#security](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_architecture.md) |
