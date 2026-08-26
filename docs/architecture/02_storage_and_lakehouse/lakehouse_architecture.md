@@ -36,12 +36,11 @@ flowchart TD
     end
 
     %% CONSUMERS
-    subgraph Consumers["Analytical & AI Consumers"]
+    subgraph Consumers["Autonomous AI & Analytical Consumers"]
         direction TB
-        BQML["📈 <b>BigQuery ML</b><br/>ARIMA_PLUS Baseline Models"]
-        Gemini["🤖 <b>Gemini SRE Agent</b><br/>Diagnostic & RCA Queries"]
-        Router["🧠 <b>Semantic Router (LLM)</b><br/>Alert Correlation & Triage"]
-        Spark["⚡ <b>Dataproc / Spark</b><br/>Large-Scale ML Retraining"]
+        Gemini["🤖 <b>Autonomous Gemini SRE Agent</b><br/>Multi-Source RCA, RAG & Diagnostics"]
+        BQML["📈 <b>BigQuery ML Engine</b><br/>ARIMA_PLUS Baseline Evaluation"]
+        Spark["⚡ <b>Dataproc / Spark</b><br/>Historical Analytics & Large-Scale Retraining"]
     end
 
     Dataflow -->|Storage Write API| BQ_Hot
@@ -54,9 +53,9 @@ flowchart TD
     BQ_Warm -->|Lifecycle Policy - 365d| GCS_Cold
 
     BQ_MV <--> BQML
-    BQ_Hot <--> Router
     BQ_Hot <--> Gemini
-    Vertex <-->|Semantic Search| Gemini
+    BQ_MV <--> Gemini
+    Vertex <-->|Semantic Search (Tool_RAG_Search)| Gemini
     BQ_Warm <--> Spark
     GCS_Cold <--> Spark
 
@@ -72,7 +71,7 @@ flowchart TD
     class BQ_Warm warmStyle;
     class GCS_Cold coldStyle;
     class Vertex,GCS_Docs vecStyle;
-    class BQML,Gemini,Router,Spark conStyle;
+    class Gemini,BQML,Spark conStyle;
 ```
 
 ---
@@ -186,14 +185,14 @@ When the Gemini SRE Agent begins diagnosing a P1 incident, it extracts the `serv
 
 ---
 
-## 5. Integration with Semantic Intelligence Router
+## 5. Integration with the Autonomous Gemini SRE Agent
+ 
+The **Autonomous Gemini SRE Agent** relies heavily on the Hot Tier and Materialized Views of this Lakehouse. 
 
-The **Semantic Intelligence Router (LLM)** relies heavily on the Hot Tier of this Lakehouse. 
-
-When a burst of alerts arrives in Pub/Sub (e.g., 50 alerts from Splunk, 10 from Akamai), the Router uses **Function Calling (Tools)** to query BigQuery securely.
-* The Router executes dynamic SQL against `aiops_lakehouse.telemetry_canonical` to check if a recent deployment occurred (via Audit Logs).
-* It queries the Materialized Views (`telemetry_opm_1min_mv`) to verify if the technical alerts are actually impacting business conversion rates.
-* By having this data pre-clustered and materialized, the LLM can pull cross-platform context within 2 seconds before creating a unified, enriched ticket in ServiceNow.
+When an incident signature is triggered, the Agent uses **Function Calling (Tools)** to query BigQuery securely:
+* **`Tool_Topology_Graph`**: Traverses the `topology_service_graph` table to inspect upstream caller and downstream dependency trees.
+* **`Tool_Diagnostic_Sandbox`**: Executes AST-safe SQL queries against `aiops_lakehouse.telemetry_canonical` to correlate concurrent Splunk error logs and Dynatrace PurePaths matching the incident's `trace_id` ($\pm 10\text{ minutes}$).
+* **Materialized Baseline Queries**: Reads `telemetry_opm_1min_mv` via BigQuery BI Engine in $< 500\text{ms}$ to verify if technical alerts correspond to active digital revenue drop-offs.
 
 ---
 
