@@ -23,17 +23,17 @@ flowchart TD
         GCPOps["☁️ <b>GCP Native</b><br/>GKE, Audit Logs & Metrics"]
     end
 
-    %% 2. NETWORK & SECURITY PERIMETER
-    subgraph Ingress_Perimeter["2. First-Mile Ingress & Security Perimeter (GCP)"]
+    %% 2. CONNECTOR LAYER & SECURITY
+    subgraph Connector_Layer["2. Ingestion Connector Layer (GCP)"]
         direction TB
         CloudArmor["🛡️ <b>Cloud Armor WAF</b><br/>IP Allowlist & Rate Limiting"]
         ExtLB["🌐 <b>Global External Application Load Balancer</b>"]
         VPN["🔒 <b>Cloud Interconnect / Cloud VPN</b><br/>Private Cross-Cloud & On-Prem Transit"]
-        CloudRunGW["⚙️ <b>Cloud Run Ingestion Gateway Fleet</b><br/>Bearer Token Auth & Publisher Batching"]
-        SecretMgr[("🔐 <b>GCP Secret Manager</b><br/>API Key & Token Vault")]
+        PushConnector["⚙️ <b>Push Connector Fleet (Cloud Run)</b><br/>API Key Auth & Publisher Batching"]
+        SecretMgr[("🔐 <b>GCP Secret Manager</b><br/>API Key Vault")]
         CloudSched["⏱️ <b>Cloud Scheduler</b><br/>Cron Polling Trigger (Every 1m)"]
-        PollerJob["🏃‍♂️ <b>Cloud Run Poller Job</b><br/>Stateful High-Watermark Querying"]
-        LogRouter["🚦 <b>Cloud Logging Log Router</b><br/>Direct Internal Sinks"]
+        PullConnector["🏃‍♂️ <b>Pull Connector (Cloud Run Job)</b><br/>Stateful High-Watermark Querying"]
+        NativeConnector["🚦 <b>Native Connector (Log Router)</b><br/>Direct Internal Sinks"]
     end
 
     %% 3. EVENT BUS
@@ -70,21 +70,21 @@ flowchart TD
     Splunk -->|"HEC Event Forwarding"| CloudArmor
 
     CloudArmor --> ExtLB
-    ExtLB --> CloudRunGW
-    CloudRunGW -.->|"Verify Bearer Token"| SecretMgr
+    ExtLB --> PushConnector
+    PushConnector -.->|"Verify API Key"| SecretMgr
     
     Legacy -->|"Private Query"| VPN
-    VPN --> PollerJob
-    CloudSched -->|"Trigger (Every 1m)"| PollerJob
+    VPN --> PullConnector
+    CloudSched -->|"Trigger (Every 1m)"| PullConnector
 
-    GCPOps -->|"Direct Internal Route"| LogRouter
+    GCPOps -->|"Direct Internal Route"| NativeConnector
 
-    CloudRunGW -->|"Batched Async Publish"| T_Akamai
-    CloudRunGW -->|"Batched Async Publish"| T_Dyna
-    CloudRunGW -->|"Batched Async Publish"| T_Splunk
-    CloudRunGW -->|"Batched Async Publish"| T_Adobe
-    PollerJob -->|"Batched Publish"| T_Legacy
-    LogRouter -->|"Native Pub/Sub Sink"| T_GCP
+    PushConnector -->|"Batched Async Publish"| T_Akamai
+    PushConnector -->|"Batched Async Publish"| T_Dyna
+    PushConnector -->|"Batched Async Publish"| T_Splunk
+    PushConnector -->|"Batched Async Publish"| T_Adobe
+    PullConnector -->|"Batched Publish"| T_Legacy
+    NativeConnector -->|"Native Pub/Sub Sink"| T_GCP
 
     T_Akamai --> BeamPipeline
     T_Dyna --> BeamPipeline
@@ -111,7 +111,7 @@ flowchart TD
     classDef sinkStyle fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
 
     class Akamai,Dyna,Splunk,Adobe,Legacy,GCPOps srcStyle;
-    class CloudArmor,ExtLB,VPN,CloudRunGW,SecretMgr,CloudSched,PollerJob,LogRouter secStyle;
+    class CloudArmor,ExtLB,VPN,PushConnector,SecretMgr,CloudSched,PullConnector,NativeConnector secStyle;
     class T_Akamai,T_Dyna,T_Splunk,T_Adobe,T_Legacy,T_GCP,DLQ_Fleet psStyle;
     class BeamPipeline dfStyle;
     class BQ_Table,GCS_Parquet,Actionable_Topic,Late_Data_Sink sinkStyle;
@@ -133,31 +133,31 @@ flowchart TD
 
 ---
 
-## 3. First-Mile Ingestion Architecture (Source to Cloud)
+## 3. The Connector Architecture (Source to Cloud)
 
-To accommodate varied source capabilities across cloud and on-premise environments, telemetry enters GCP via three specialized transport patterns:
+To accommodate varied source capabilities across cloud and on-premise environments, telemetry enters GCP via three specialized connector patterns. As the primary authentication strategy, we utilize secure **API Keys** validated against GCP Secret Manager.
 
-### 3.1 Pattern A: Push-Based Ingestion (Modern SaaS & Edge)
+### 3.1 Push Connectors (Modern SaaS & Edge)
 Used by **Akamai DataStream 2**, **Dynatrace**, **Splunk HEC**, and **Adobe Analytics**.
 * **Transport**: HTTPS `POST` requests sending compressed JSON or newline-delimited JSON payloads.
 * **Edge Security**: Traffic enters via **Cloud Armor WAF** attached to a Global External Application Load Balancer:
   - **Source IP Allowlisting**: Restricted to verified egress CIDR ranges of Akamai, Dynatrace, and Adobe infrastructure.
   - **Token Bucket Rate Limiting**: Max 50,000 requests/second per source CIDR to prevent volumetric DoS attacks.
-* **Ingress Gateway Fleet**: Stateless, containerized **Cloud Run services** that:
-  1. Inspect the `Authorization: Bearer <API_KEY>` header.
-  2. Verify credentials against local in-memory cache synchronized with **GCP Secret Manager** (supporting zero-downtime key rotation every 30-90 days).
+* **Push Connector Fleet**: Stateless, containerized **Cloud Run services** that act as dedicated ingestion connectors:
+  1. **API Key Authentication**: Inspect the `Authorization: Bearer <API_KEY>` or `X-API-Key` headers.
+  2. **Security & Validation**: Verify credentials against local in-memory cache synchronized with **GCP Secret Manager** (supporting zero-downtime API Key rotation every 30-90 days). Unauthorized requests are rejected immediately with HTTP 401.
   3. Buffer incoming requests and perform high-performance publisher batching (`batching.max_messages = 1000`, `batching.max_delay = 50ms`) before calling `pubsub.publish()`.
 
-### 3.2 Pattern B: Pull-Based Polling (Legacy & Air-Gapped Systems)
+### 3.2 Pull Connectors (Legacy & Air-Gapped Systems)
 Used for legacy on-premise monitoring databases (e.g., Oracle/SQL Server operational tables, custom monitoring daemons) unable to push outbound webhooks.
 * **Transport**: Private connectivity via **Dedicated Cloud Interconnect** or **HA Cloud VPN**.
-* **Orchestration**: **Cloud Scheduler** triggers a containerized **Cloud Run Job** on a 1-minute cron schedule.
-* **Pagination & Watermarking**: The poller maintains a high-watermark timestamp in Cloud Storage/Firestore, extracts only delta records, transforms them into JSON, and publishes them into `telemetry.legacy.raw`.
+* **Orchestration**: **Cloud Scheduler** triggers a containerized **Cloud Run Job (Pull Connector)** on a 1-minute cron schedule.
+* **Pagination & Watermarking**: The Pull Connector maintains a high-watermark timestamp in Cloud Storage/Firestore, extracts only delta records via JDBC/REST, transforms them into JSON, and publishes them into `telemetry.legacy.raw`.
 
-### 3.3 Pattern C: Direct Cloud-Native Routing (GCP Operations Suite)
+### 3.3 Native Connectors (GCP Operations Suite)
 Used for GKE cluster logs, Cloud Audit Logs, VPC Flow Logs, and Cloud Monitoring metrics.
 * **Transport**: GCP internal backbone using **Cloud Logging Log Router**.
-* **Zero-Compute Ingress**: Ingestion filters route events directly into `telemetry.gcp.raw` without intermediate compute or proxy layers.
+* **Zero-Compute Ingress**: Native Connectors route events directly into `telemetry.gcp.raw` without intermediate compute or proxy layers.
 
 ---
 

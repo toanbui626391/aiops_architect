@@ -10,7 +10,7 @@ The **Dynatrace Connector** provides a dual-channel ingestion pipeline into GCP:
 3. **OpenTelemetry Trace Export**: High-volume span and trace forwarding for error and p99 latency calls.
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Dynatrace["Dynatrace SaaS Fleet"]
         direction TB
         Davis["🤖 <b>Davis AI Engine</b><br/>Problem Events & RCA"]

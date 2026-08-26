@@ -7,7 +7,7 @@
 The **Adobe Analytics Connector** bridges the gap between digital retail business health and IT operational monitoring. By ingesting streaming clickstream and business transaction events into GCP, the AIOps platform enables **Silent Outage Detection**—detecting when business revenue drops due to UI/client bugs even when backend infrastructure returns HTTP 200 OK.
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Adobe_Digital["Adobe Experience Cloud"]
         direction TB
         AEP["⚡ <b>AEP Streaming Ingestion</b><br/>Live Cart & Order Events"]

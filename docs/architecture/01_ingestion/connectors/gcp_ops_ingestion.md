@@ -7,7 +7,7 @@ The **Google Cloud Operations Suite Connector** provides real-time, native inges
 Because telemetry resides natively within Google Cloud, ingestion achieves **sub-second latency with zero egress cost**, providing foundational health metrics and audit logs for the entire AIOps platform.
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph GCP_Workloads["GCP Infrastructure & Platform Services"]
         direction TB
         GKE["☸️ <b>GKE Clusters</b><br/>Pod health, CPU/Mem, Restarts"]
