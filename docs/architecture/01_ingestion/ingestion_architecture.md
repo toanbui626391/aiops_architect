@@ -21,17 +21,25 @@ flowchart TD
         Native["🚦 <b>Native Connectors (Log Router)</b><br/>Direct Routing for GCP Ops"]
     end
     
+    %% Robustness Layer
+    subgraph Robustness ["Robustness & Governance"]
+        direction TB
+        SchemaReg["📝 <b>Schema Registry</b><br/>Protobuf / Avro Enforcement"]
+        Monitor["👀 <b>Cloud Monitoring & Alerting</b><br/>SLIs: Lag, Un-acked msgs, DLQ Depth"]
+    end
+
     %% Event Bus
-    PubSub["📬 <b>Cloud Pub/Sub</b><br/>Isolated Topics (e.g., telemetry.akamai.raw)"]
+    PubSub["📬 <b>Cloud Pub/Sub</b><br/>Isolated Topics (Multi-Region)"]
     
     %% Stream Processing
-    Dataflow["⚙️ <b>Cloud Dataflow (Apache Beam)</b><br/>Deduplication, DLP Scrubbing & Normalization"]
+    Dataflow["⚙️ <b>Cloud Dataflow (Apache Beam)</b><br/>Deduplication, DLP, Normalization & Validation"]
     
-    %% Storage Sinks
-    subgraph Storage ["2. Storage & Action Sinks"]
+    %% Bad Data & Sinks
+    subgraph Sinks ["2. Sinks & Action Layers"]
         direction TB
         BQ[("🗄️ <b>BigQuery</b><br/>Analytics Lakehouse")]
-        GCS[("📦 <b>Cloud Storage</b><br/>Parquet Cold Archive")]
+        GCS[("📦 <b>Cloud Storage (Archive)</b><br/>Parquet Cold Archive")]
+        DLQ[("🗑️ <b>Cloud Storage (DLQ)</b><br/>Malformed & Rejected Payloads")]
         Action["🧠 <b>Vertex AI & ServiceNow</b><br/>Automated Incident Response"]
     end
 
@@ -44,7 +52,14 @@ flowchart TD
     Pull --> PubSub
     Native --> PubSub
     
+    PubSub -.->|Schema Validation| SchemaReg
+    Dataflow -.->|Dynamic Type Checking| SchemaReg
+    Monitor -.->|Observes| PubSub
+    Monitor -.->|Observes| Dataflow
+
     PubSub --> Dataflow
+    PubSub -->|Un-ack'd Dead Letters| DLQ
+    Dataflow -->|Parsing/Validation Errors| DLQ
     
     Dataflow --> BQ
     Dataflow --> GCS
@@ -56,12 +71,16 @@ flowchart TD
     classDef psStyle fill:#FFF3E0,stroke:#E65100,stroke-width:2px;
     classDef dfStyle fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px;
     classDef sinkStyle fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px;
+    classDef robStyle fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef dlqStyle fill:#FFEBEE,stroke:#C62828,stroke-width:2px;
 
     class Sources srcStyle;
     class Push,Pull,Native conStyle;
     class PubSub psStyle;
     class Dataflow dfStyle;
     class BQ,GCS,Action sinkStyle;
+    class SchemaReg,Monitor robStyle;
+    class DLQ dlqStyle;
 ```
 
 ---
@@ -106,7 +125,37 @@ A unified streaming pipeline processes all telemetry in real-time:
 
 ---
 
-## 4. Sub-Modules & Detailed Guides
+## 4. Reliability & Robustness Patterns
+
+To ensure enterprise-grade ingestion, the architecture implements several robust engineering patterns:
+
+### 4.1 Schema Management & Evolution
+As source APIs (like Dynatrace or Splunk) evolve, breaking schema changes can cascade and fail Dataflow jobs or BigQuery inserts. 
+* **Mechanism**: We utilize the **Pub/Sub Schema Registry** supporting Protobuf and Avro. 
+* **Validation**: Connectors are required to conform to the registered schema before publishing. Dataflow jobs also query the registry to dynamically handle backward-compatible schema evolutions (e.g., adding a new field) without requiring pipeline restarts.
+
+### 4.2 Bad Data Handling (Dead-Letter Queues - DLQs)
+Invalid JSON, corrupted payloads, or unauthorized events must not block the main processing stream.
+* **Pub/Sub DLQs**: If Dataflow cannot acknowledge a message (e.g., severe crashing on a payload) after 5 delivery attempts, Pub/Sub routes it to a native Pub/Sub DLQ topic.
+* **Dataflow Side-Outputs**: If a payload parses successfully but fails validation (e.g., missing required `timestamp`), the `DoFn` emits the record to a dedicated "side-output".
+* **Storage**: Both streams route bad records to a dedicated **Cloud Storage DLQ Bucket** for inspection, alerting, and eventual replay.
+
+### 4.3 Failure Tolerance & Resiliency
+* **Multi-Region Routing**: Critical telemetry topics are configured for cross-region routing to ensure ingestion survives a single GCP zone/region outage.
+* **Task Retries**: Cloud Composer DAGs (Pull Connectors) utilize Airflow's built-in exponential backoff retries for transient API failures.
+* **Auto-Scaling**: Cloud Dataflow Streaming pipelines are configured with Auto-scaling (up to a defined `maxNumWorkers`) to gracefully absorb massive traffic spikes (e.g., DDoS attacks logged by Akamai).
+
+### 4.4 Pipeline Observability & Alerting
+The ingestion pipelines must be strictly monitored to prevent "silent failures" where data stops flowing.
+* **Service Level Indicators (SLIs)**: 
+  * Pub/Sub: `oldest_unacked_message_age` (Target: < 5 minutes).
+  * Dataflow: `system_lag` and `data_watermark_age`.
+  * DLQ Depth: Alert if DLQ bucket size increases rapidly.
+* **Alerting Engine**: **Cloud Monitoring** continuously tracks these SLIs. Violations trigger alerts routed directly to ServiceNow (via webhook) to page the internal Data Platform SRE team.
+
+---
+
+## 5. Sub-Modules & Detailed Guides
 
 For granular details on specific source connectors, refer to the individual connector documentation:
 * [Akamai DataStream Connector](connectors/akamai_datastream.md)
