@@ -1,167 +1,226 @@
-# AIOps Intelligence Layer - Architecture Specification
+# AIOps Intelligence & Reasoning Layer - Agent-Centric Architecture
 
-## 1. Executive Overview
+## 1. Executive Summary & Architectural Role
 
-The **AIOps Intelligence Layer** is the reasoning core of the platform, running natively on **Google Cloud Platform (Vertex AI & BigQuery ML)**. It transforms curated features, topology graphs, and incident signatures prepared by the [Data Processing & Feature Preparation Layer](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md) into actionable operational decisions, performing:
-1. **Semantic Alert Routing & De-Noising**: Clustering cascading alert storms into single root cause incidents.
-2. **Context-Aware SRE Agent Execution**: Leveraging Gemini models to perform cross-source RCA and diagnostic runbook retrieval.
-3. **Automated SOP Diagnostics**: Executing non-destructive verification steps and attaching synthesized evidence to **ServiceNow**.
-4. **Silent Outage Business Anomaly Detection**: Detecting customer-impacting revenue drops via BQML time-series models.
-5. **Continuous Closed-Loop Learning**: Gathering SRE resolution feedback to evaluate and tune reasoning prompts and vector embeddings.
+The **AIOps Intelligence & Reasoning Layer** is the cognitive core of the platform, powered natively by **Google Cloud Platform (Vertex AI & Gemini Models)**.
+
+Instead of deploying fragmented LLMs and disconnected execution engines, this layer centers around a unified **Autonomous Gemini SRE Agent** equipped with a specialized **Supportive Agentic Tool Suite**, **Semantic Memory**, **Model Armor Guardrails**, and **Context Caching**.
+
+The agent consumes structured `Incident Signature Payloads` emitted by the [Data Processing & Feature Preparation Layer](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md) and autonomously executes a 4-phase reasoning plan to triage incidents, isolate root causes, run non-destructive diagnostics, and update **ServiceNow**.
 
 ```mermaid
 flowchart TD
-    %% INPUTS
-    subgraph Ingestion_Feeds["1. Ingestion Feeds"]
-        direction LR
-        AlertStream["📬 <b>Pub/Sub Alert Stream</b><br/><code>aiops.alerts.actionable</code>"]
-        LakehouseDB[("🗄️ <b>BigQuery Lakehouse</b><br/>Historical Telemetry & Metrics")]
-    end
+    %% INPUT TRIGGER
+    IncidentSig["📦 <b>Incident Signature Payload</b><br/>(Pre-clustered alerts from Dataflow & BQML triggers)"]
 
-    %% AI CORE COMPONENTS
-    subgraph AI_Core["2. Vertex AI & BigQuery ML Intelligence Engine"]
+    %% CORE AGENT RUNTIME
+    subgraph AgentRuntime["1. Autonomous Gemini SRE Agent Core (Vertex AI)"]
         direction TB
+        Orchestrator["🤖 <b>Gemini SRE Reasoning Core</b><br/>Chain-of-Thought planning & native Tool Use (Function Calling)"]
         
-        subgraph Guardrails["Security & Resilience Layer"]
-            Sanitizer["🛡️ <b>Model Armor & Sanitizer</b><br/>Prompt injection & PII filtering"]
-            SemCache[("⚡ <b>Semantic Cache</b><br/>Cloud Memorystore Redis - 5m TTL")]
-            FallbackRouter["⚙️ <b>Deterministic Fallback Router</b><br/>Topology & Rule Engine - Circuit Breaker"]
-        end
-
-        subgraph Reasoning["Vertex AI Reasoning Engine"]
-            BQML_Engine["📈 <b>Business Anomaly Engine</b><br/>BQML ARIMA_PLUS on Adobe OPM & Cart conversion"]
-            SemanticRouter["🧠 <b>Semantic Intelligence Router (Vertex AI LLM)</b><br/>• De-duplicates alert storms across tools<br/>• Identifies root component from Smartscape<br/>• Maps to responsible SRE Pod"]
-            ContextAgent["🤖 <b>Context-Aware SRE Agent (Gemini)</b><br/>• Synthesizes cross-tool evidence (PurePath + Splunk)<br/>• Computes estimated financial impact<br/>• Generates executive RCA summaries"]
-            VectorDB[("🔍 <b>Vertex AI Vector Search</b><br/>SOP & Runbook Embeddings Index")]
-            SOPEngine["⚡ <b>SOP Diagnostic Sandbox</b><br/>AST-validated read-only execution runner"]
+        subgraph ReasoningLoop["4-Phase Agent Reasoning Lifecycle"]
+            direction LR
+            Phase1["1. Triage & Pod Mapping"] --> Phase2["2. Multi-Source RCA"]
+            Phase2 --> Phase3["3. SOP Diagnostic Run"]
+            Phase3 --> Phase4["4. ServiceNow Dispatch"]
         end
     end
 
-    %% ENTERPRISE ACTION & FEEDBACK
-    subgraph Action["3. ServiceNow Action & Feedback Layer"]
+    %% SUPPORTIVE AGENT TOOLS
+    subgraph SupportiveTools["2. Supportive Agentic Tool Suite (Function Calling)"]
         direction TB
-        SNOW_Ticket["🎫 <b>ServiceNow Incident Record</b><br/>• Direct SRE pod assignment<br/>• Attached forensic logs & trace snippets<br/>• Pre-executed diagnostic findings"]
-        SRE["👨‍💻 <b>On-Call SRE Pod</b>"]
-        FeedbackHook["🔄 <b>Feedback Webhook & Evaluator</b><br/>Incident resolution & rating sync"]
-        EvalDB[("📊 <b>BigQuery Model Evaluation Store</b><br/>Prompt tuning & accuracy tracking")]
+        Tool_RAG["🔍 <b>RAG Vector Search Tool</b><br/>Vertex Vector Search for SOP Runbooks & Post-Mortems"]
+        Tool_Sandbox["⚡ <b>Sandboxed Diagnostic Tool</b><br/>AST-safe BigQuery queries & idempotent REST GETs"]
+        Tool_Graph["🕸️ <b>Topology Graph Traversal Tool</b><br/>Queries CMDB & Smartscape adjacency matrices"]
+        Tool_ITSM["🎫 <b>ServiceNow Dispatch Tool</b><br/>Cloud Tasks rate-limited ticket creator/updater"]
     end
 
-    AlertStream --> Sanitizer
-    Sanitizer --> SemCache
-    SemCache -->|Cache Miss| SemanticRouter
-    SemCache -->|Cache Hit| ContextAgent
+    %% GUARDRAILS & ACCELERATION
+    subgraph Guardrails["3. Agent Guardrails & Performance Accelerators"]
+        direction TB
+        ModelArmor["🛡️ <b>Vertex AI Model Armor</b><br/>Prompt injection sanitization & secret redaction"]
+        SemCache["⚡ <b>Semantic Memory Cache</b><br/>Cloud Memorystore Redis (5m TTL)"]
+        ContextCache["💾 <b>Vertex AI Context Cache</b><br/>Pre-cached CMDB schemas & SOP metadata"]
+        CircuitBreaker["⚙️ <b>Deterministic Fallback Rule Engine</b><br/>Circuit breaker on Vertex AI latency > 5s or HTTP 429"]
+    end
 
-    LakehouseDB --> BQML_Engine
-    BQML_Engine -->|Trigger Business Anomaly Alert| SemanticRouter
+    %% EVALUATION & LEARNING
+    subgraph EvalLoop["4. Agent Evaluation & Continuous Learning"]
+        direction TB
+        EvalStore[("📊 <b>BigQuery Agent Evaluation Store</b><br/><code>aiops_lakehouse.agent_evaluations</code>")]
+        PromptTuner["🛠️ <b>Prompt & Tool Tuning Pipeline</b><br/>Automated GitHub Actions evaluation"]
+    end
 
-    SemanticRouter -.->|On Vertex AI Timeout or 429 Quota| FallbackRouter
-    FallbackRouter -->|Fallback Incident| SNOW_Ticket
+    %% PIPELINE FLOWS
+    IncidentSig --> ModelArmor
+    ModelArmor --> SemCache
+    SemCache -->|Cache Miss| Orchestrator
+    SemCache -->|Cache Hit| Tool_ITSM
 
-    SemanticRouter --> ContextAgent
-    VectorDB <-->|Retrieve Matching SOP Runbook| ContextAgent
-    ContextAgent --> SOPEngine
+    Orchestrator -.->|Vertex AI Degradation / Quota Spike| CircuitBreaker
+    CircuitBreaker -->|Deterministic Fallback Ticket| Tool_ITSM
 
-    SemanticRouter -->|Create Consolidated Incident| SNOW_Ticket
-    ContextAgent -->|Enrich with Multi-Source RCA| SNOW_Ticket
-    SOPEngine <-->|Attach Diagnostic Results| SNOW_Ticket
-    SNOW_Ticket --> SRE
+    Orchestrator <-->|Context Caching| ContextCache
+    Orchestrator <-->|Invoke RAG Search| Tool_RAG
+    Orchestrator <-->|Execute Diagnostics| Tool_Sandbox
+    Orchestrator <-->|Explore Dependencies| Tool_Graph
+    Orchestrator -->|Post Enriched Incident| Tool_ITSM
 
-    SRE -->|Close Incident & Rate Accuracy| FeedbackHook
-    FeedbackHook --> EvalDB
-    EvalDB -.->|Continuous Prompt & Embedding Tuning| VectorDB
+    Tool_ITSM -.->|SRE Feedback on Closure| EvalStore
+    EvalStore --> PromptTuner
+    PromptTuner -.->|Update System Instructions| Orchestrator
 
-    classDef inStyle fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C;
+    %% STYLING DIRECTIVES
+    classDef sigStyle fill:#ECEFF1,stroke:#37474F,stroke-width:2px,color:#263238;
+    classDef agentStyle fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
+    classDef toolStyle fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C;
     classDef guardStyle fill:#FFEBEE,stroke:#C62828,stroke-width:2px,color:#B71C1C;
-    classDef aiStyle fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
-    classDef actStyle fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40;
+    classDef evalStyle fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40;
 
-    class AlertStream,LakehouseDB inStyle;
-    class Sanitizer,SemCache,FallbackRouter guardStyle;
-    class BQML_Engine,SemanticRouter,ContextAgent,VectorDB,SOPEngine aiStyle;
-    class SNOW_Ticket,SRE,FeedbackHook,EvalDB actStyle;
+    class IncidentSig sigStyle;
+    class Orchestrator,Phase1,Phase2,Phase3,Phase4 agentStyle;
+    class Tool_RAG,Tool_Sandbox,Tool_Graph,Tool_ITSM toolStyle;
+    class ModelArmor,SemCache,ContextCache,CircuitBreaker guardStyle;
+    class EvalStore,PromptTuner evalStyle;
 ```
 
 ---
 
-## 2. Core Intelligence Modules
+## 2. Autonomous Gemini SRE Agent: The 4-Phase Reasoning Lifecycle
 
-### 2.1 Semantic Intelligence Router
-* **Engine**: Fine-tuned Gemini models on Vertex AI.
-* **Function**: Ingests raw alert payloads from `aiops.alerts.actionable` in 30-second sliding windows.
-* **Alert De-Noising**: When a core database fails, 50+ secondary alerts fire across Akamai (504s), GKE (pod restarts), Splunk (connection errors), and Dynatrace. The Semantic Router clusters these into a single master incident, preventing L1 queue saturation.
-* **Routing**: Directly assigns the ticket to the specific SRE pod (e.g., `Checkout-Backend-Pod`) using ServiceNow CMDB topology mappings.
+Rather than using separate, uncoordinated LLMs for triage and investigation, the **Gemini SRE Agent** executes a single, cohesive reasoning loop via function calling:
 
-### 2.2 Context-Aware SRE Agent (Gemini)
-* **Function**: Multi-modal reasoning engine that correlates technical telemetry with business impact.
-* **Forensic Enrichment**: When an incident is assigned, the agent automatically executes:
-  1. Dynatrace PurePath stack trace extraction for the top failing method.
-  2. Targeted Splunk SPL queries for the affected host $\pm 10$ minutes.
-  3. Adobe Analytics financial impact calculation (estimated revenue loss in USD per minute).
-* **Summary Generation**: Writes an executive summary and technical diagnosis in clear markdown directly onto the ServiceNow incident work notes.
+```mermaid
+flowchart LR
+    P1["<b>Phase 1: Triage & Ownership</b><br/>• Maps CI to SRE Pod<br/>• Calculates Priority (P1-P4)"] --> P2["<b>Phase 2: Deep RCA</b><br/>• Extracts PurePath stack trace<br/>• Correlates Splunk errors<br/>• Computes revenue loss"]
+    P2 --> P3["<b>Phase 3: Diagnostic Run</b><br/>• Retrieves SOP via RAG<br/>• Executes AST-safe SQL<br/>• Formats evidence block"]
+    P3 --> P4["<b>Phase 4: ServiceNow Action</b><br/>• Sets correlation_id<br/>• Posts enriched work notes<br/>• Pages on-call engineer"]
 
-### 2.3 Automated SOP Runbook Execution Engine
-* **Storage**: SOP runbooks are authored in Markdown with YAML Frontmatter ("Runbooks as Code") and indexed in **Vertex AI Vector Search**.
-* **Autonomous Execution**:
-  * The agent retrieves the top matching SOP via vector similarity.
-  * The agent executes all read-only diagnostic SQL queries and REST checks defined in the SOP `diagnostics` block.
-  * Diagnostic results are appended to the ticket before the engineer opens it.
+    classDef phaseStyle fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
+    class P1,P2,P3,P4 phaseStyle;
+```
 
-### 2.4 Business Anomaly Engine (BQML)
-* **Model**: BigQuery ML `ARIMA_PLUS` time-series forecasting.
-* **Metric**: Real-time Orders Per Minute (OPM) and Cart Conversion Rate from Adobe Analytics.
-* **Detection**: Detects "silent outages" where infrastructure metrics appear green but digital checkout is failing. Triggers a P1 incident when OPM deviates $> 3\sigma$ from predicted seasonal baselines.
+### Phase 1: Incident Triage & Pod Assignment
+* **Objective**: Ingests the structured `Incident Signature Payload` and evaluates impact.
+* **Tool Invocation**: Calls `Tool_Topology_Graph` to inspect parent-child microservice dependencies.
+* **Outcome**: Assigns urgency, severity, and the responsible SRE pod (e.g., `Checkout-Backend-Pod` vs. `Network-Edge-Pod`), completely bypassing manual L1 helpdesk queues.
 
----
+### Phase 2: Multi-Source Root Cause Analysis (RCA)
+* **Objective**: Correlates technical telemetry with business performance.
+* **Actions**:
+  1. Identifies the failing code path or database session via Dynatrace PurePath trace IDs.
+  2. Synthesizes concurrent Splunk server error logs matching the incident time window ($\pm 10\text{ minutes}$).
+  3. Estimates real-time digital financial impact (e.g., *"$14.2k/min revenue drop based on Adobe Orders Per Minute deviation"*).
 
-## 3. Resilience, Circuit Breaker & Fallback Architecture
+### Phase 3: RAG Retrieval & Sandboxed Diagnostic Execution
+* **Objective**: Autonomous execution of standard diagnostic runbooks before engineer engagement.
+* **Actions**:
+  1. Calls `Tool_RAG_Search` to retrieve the relevant Standard Operating Procedure (SOP) from **Vertex AI Vector Search**.
+  2. Extracts all read-only diagnostic checks from the SOP YAML frontmatter.
+  3. Invokes `Tool_Diagnostic_Sandbox` to execute the queries safely against BigQuery and internal monitoring APIs.
 
-1. **Deterministic Rule Fallback Engine**: If Vertex AI encounters regional degradation, API latency spikes ($> 5$ seconds), or 429 Rate Limit exhaustion during major alert floods, a circuit breaker trips. Telemetry is automatically routed through a deterministic rule-based engine utilizing cached Dynatrace Smartscape topologies and static CMDB service ownership tables.
-2. **Asynchronous Dead-Letter Queues (DLQ)**: Any alerts that fail both AI routing and deterministic parsing are written to `aiops.alerts.dlq` on Pub/Sub and archived in Cloud Storage for post-incident replay and pipeline diagnostics.
-
----
-
-## 4. Security & Prompt Injection Defense
-
-1. **Vertex AI Model Armor & Sanitization**: All telemetry payloads pass through an input sanitizer prior to LLM prompt construction. The sanitizer:
-   * Strips known prompt injection delimiters (e.g., `Ignore previous instructions`, `SYSTEM PROMPT:`).
-   * Enforces strict schema structure (JSON-only input boundaries).
-   * Redacts sensitive secrets and API keys using regex tokenizers.
-2. **Cloud DLP PII Masking**: Incoming telemetry is scrubbed for payment card numbers (PCI-DSS) and customer PII before entering BigQuery or the LLM context window.
-3. **Least-Privilege Service Accounts**: Gemini Agent tool execution is isolated to dedicated GCP Service Accounts with fine-grained, read-only permissions across BigQuery datasets and external APIs.
+### Phase 4: ServiceNow Dispatch & Action
+* **Objective**: Publish the complete synthesized diagnosis to the enterprise system of record.
+* **Actions**:
+  1. Constructs the Markdown summary and diagnostic findings block.
+  2. Invokes `Tool_ServiceNow_Dispatch` to create or update the incident in ServiceNow with `correlation_id = signature_id`.
+  3. Automatically alerts the on-call engineer with complete diagnostic evidence pre-attached.
 
 ---
 
-## 5. Performance, Token Cost & Caching Strategy
+## 3. The Supportive Agentic Tool Suite (Function Calling)
 
-1. **Semantic Cache (Cloud Memorystore Redis)**:
-   * **Mechanism**: Vectorizes alert cluster signatures and queries a 5-minute TTL cache in Redis.
-   * **Benefit**: Reuses RCA and runbook mappings for duplicate alerts, reducing LLM API calls by up to 70% during peak incident alert storms.
-2. **Vertex AI Context Caching**:
-   * **Mechanism**: Pre-caches static CMDB microservice schemas, SRE pod matrices, and runbook metadata in Vertex AI.
-   * **Benefit**: Reduces prompt token latency by up to 80% and decreases per-incident reasoning cost by up to 75%.
+The Gemini SRE Agent interacts with the enterprise ecosystem through four strictly governed tools:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        Gemini SRE Agent Runtime                        │
+└──────┬─────────────────┬─────────────────────┬──────────────────┬──────┘
+       │                 │                     │                  │
+       ▼                 ▼                     ▼                  ▼
+ ┌───────────┐     ┌───────────┐         ┌───────────┐      ┌───────────┐
+ │ Tool_RAG  │     │  Tool_    │         │ Tool_     │      │ Tool_     │
+ │ Vector    │     │  Sandbox  │         │ Topology  │      │ ServiceNow│
+ │ Search    │     │  Executor │         │ Graph     │      │ Dispatch  │
+ └─────┬─────┘     └─────┬─────┘         └─────┬─────┘      └─────┬─────┘
+       │                 │                     │                  │
+       ▼                 ▼                     ▼                  ▼
+ Vertex Vector     BigQuery Sandbox      BigQuery Graph       Cloud Tasks
+  Index (SOPs)     (AST Validator)      (CMDB Adjacency)     (REST Buffer)
+```
+
+### 3.1 `Tool_RAG_Search` (Runbook & Post-Mortem Retrieval)
+* **Underlying Service**: **Vertex AI Vector Search Index**.
+* **Capabilities**: Executes Approximate Nearest Neighbor (ANN) vector search (768-dimension embeddings) filtered by `service_name` and `environment`.
+* **Output**: Returns the top-matching Markdown SOP containing symptoms, diagnostic commands, and remediation runbook links.
+
+### 3.2 `Tool_Diagnostic_Sandbox` (Read-Only Execution Environment)
+* **Underlying Service**: BigQuery Client + Cloud Run Gateway with AST Validator.
+* **Guardrails**:
+  * **AST SQL Parsing**: Blocks mutating statements (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `MERGE`). Only `SELECT` queries with mandatory `LIMIT <= 100` are permitted.
+  * **HTTP Gate**: Restricts external diagnostic API calls strictly to idempotent `GET` requests.
+  * **Quotas**: Hard 15-second execution timeout and maximum 1 GB BigQuery scan limit.
+
+### 3.3 `Tool_Topology_Graph` (Dependency Traversal)
+* **Underlying Service**: BigQuery `aiops_lakehouse.topology_service_graph`.
+* **Capabilities**: Executes recursive BFS traversal across Dynatrace Smartscape and ServiceNow CMDB CI relationships to return upstream caller and downstream dependency trees.
+
+### 3.4 `Tool_ServiceNow_Dispatch` (ITSM Enriched Ticket Publisher)
+* **Underlying Service**: Asynchronous Cloud Tasks Queue (`aiops-snow-dispatch-queue`).
+* **Capabilities**: Submits enriched JSON payloads to ServiceNow with rate-limiting protection ($20\text{ req/s}$) and `correlation_id` deduplication.
 
 ---
 
-## 6. Closed-Loop SRE Feedback & Continuous Model Observability
+## 4. Agent Guardrails, Security & Performance Acceleration
 
-1. **Bidirectional ServiceNow Feedback Loop**:
-   * Webhook on incident closure captures engineer feedback (`Root Cause Confirmed`, `False Positive`, rating from 1 to 5).
-2. **Model Evaluation Store (BigQuery `aiops_lakehouse.agent_evaluations`)**:
-   * Tracks Routing Accuracy ($> 92\%$), SOP Retrieval Recall@K ($> 88\%$), and Grounding/Faithfulness ($> 99\%$).
-   * Low-accuracy ratings trigger automated GitHub Actions to tune prompts and re-index vector embeddings.
+### 4.1 Vertex AI Model Armor & Input Sanitization
+All raw telemetry strings and external API responses pass through an input sanitizer before entering the Gemini context window:
+1. **Prompt Injection Defense**: Strips delimiter attacks (e.g., `Ignore previous instructions`, `SYSTEM PROMPT:`, `Assistant:`).
+2. **Secret Redaction**: Regex tokenizers scrub API tokens, private keys, and passwords.
+3. **Cloud DLP Integration**: Masks credit card numbers (PCI-DSS) and customer PII from log excerpts.
+
+### 4.2 Vertex AI Context Caching
+* **Mechanism**: Static CMDB microservice schemas, SRE pod matrices, system instructions, and tool definitions are pre-cached in Vertex AI Context Storage.
+* **Impact**:
+  * **Latency**: Reduces prompt token processing time by up to **80%**.
+  * **Cost**: Decreases per-incident input token billing by up to **75%**.
+
+### 4.3 Semantic Memory Cache (Cloud Memorystore Redis)
+* **Mechanism**: Generates an embedding hash of the `Incident Signature` and queries a 5-minute TTL Redis cache.
+* **Benefit**: Reuses RCA and diagnostic findings for recurring or duplicate alert bursts, avoiding redundant LLM invocations during major incidents.
+
+### 4.4 Deterministic Rule Fallback Engine (Circuit Breaker)
+* **Trigger Condition**: If Vertex AI experiences regional degradation, API latency spikes ($> 5\text{ seconds}$), or HTTP 429 quota exhaustion.
+* **Action**: The circuit breaker trips immediately. Telemetry is routed through a deterministic Python rule engine using cached CMDB topology tables to assign the ticket, guaranteeing $100\%$ incident routing uptime.
 
 ---
 
-## 7. Sandboxed SOP Diagnostic Execution Specifications
+## 5. Closed-Loop SRE Feedback & Model Observability
 
-1. **AST-Based SQL Validation**: Strict parser blocks destructive SQL (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `MERGE`). Only read-only `SELECT` queries with mandatory `LIMIT` ($\le 100$) are allowed.
-2. **HTTP Method Restrictions**: External diagnostic API calls are restricted exclusively to idempotent `GET` requests. Mutating methods (`POST`, `PUT`, `PATCH`, `DELETE`) are blocked at the gateway.
-3. **Timeout & Resource Quotas**: Diagnostic queries are limited to a hard 15-second execution timeout and maximum 1 GB BigQuery scan limit.
+To prevent model hallucination drift and continuously improve diagnostic quality, the agent operates in a continuous learning loop:
+
+```mermaid
+flowchart LR
+    Closure["🎫 Incident Closed in ServiceNow"] --> Webhook["🔄 Outbound Business Rule Webhook"]
+    Webhook --> EvalDB[("📊 BigQuery Model Evaluation Store<br/><code>aiops_lakehouse.agent_evaluations</code>")]
+    EvalDB --> Metrics["📈 Continuous Evaluation Pipeline<br/>• Routing Precision@K (Target > 92%)<br/>• SOP Recall@3 (Target > 88%)<br/>• Grounding Faithfulness (Target > 99%)"]
+    Metrics -.->|SLO Breach Alert| Tuning["🛠️ Automated GitHub Actions Prompt Tuning"]
+
+    classDef loopStyle fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
+    class Closure,Webhook,EvalDB,Metrics,Tuning loopStyle;
+```
+
+### 5.1 Evaluation Metrics & Quality Targets
+* **Routing Accuracy ($> 92\%$)**: Percentage of incidents assigned to the correct SRE pod without human re-assignment.
+* **SOP Retrieval Recall@3 ($> 88\%$)**: Percentage of incidents where the relevant remediation runbook was among the top-3 retrieved.
+* **Grounding & Faithfulness ($> 99\%$)**: Verification that all facts, metrics, and trace IDs in the ticket summary are grounded in raw telemetry.
 
 ---
 
-## 8. Related Architectural Specifications
+## 6. Summary & Cross-Domain Linkages
 
-* [Data Processing & AI Feature Preparation](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md)
+This agent-centric specification interfaces directly with:
+* [Platform Overview & End-to-End Blueprint](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/00_overview/aiops_platform_overview.md)
+* [Data Processing & Feature Preparation Architecture](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md)
 * [Unified Lakehouse Architecture](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_architecture.md)
 * [ServiceNow Integration & Remediation Guide](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_itsm_and_remediation/servicenow_integration.md)

@@ -20,8 +20,8 @@ flowchart LR
     subgraph GCP["GCP AIOps Core"]
         direction TB
         Ingest["High-Throughput Ingestion<br/>(Pub/Sub + Dataflow)"]
-        Lakehouse["Unified Data Lakehouse<br/>(BigQuery + Parquet)"]
-        AI["Reasoning & Intelligence<br/>(Vertex AI + Gemini)"]
+        Lakehouse["Unified Data Lakehouse & Features<br/>(BigQuery + Feature Store)"]
+        AI["Autonomous Gemini SRE Agent<br/>(Supportive Tools & RAG)"]
     end
 
     subgraph Action["Enterprise Action"]
@@ -32,10 +32,10 @@ flowchart LR
 
     Sources ==> Ingest
     Ingest --> Lakehouse
-    Ingest --> AI
-    Lakehouse <--> AI
+    Lakehouse --> AI
     AI ==> SNOW
     SNOW --> SRE
+    SNOW -.->|Closed-Loop Feedback| Lakehouse
 
     classDef s fill:#ECEFF1,stroke:#37474F,stroke-width:2px,color:#263238;
     classDef g fill:#EDE7F6,stroke:#512DA8,stroke-width:2px,color:#311B92;
@@ -59,11 +59,12 @@ While telemetry originates from diverse specialized tools across edge networks, 
 ### 2.3 Event-Driven Streaming & Elastic Scale
 The platform is built on an event-driven architecture using **Cloud Pub/Sub** and **Cloud Dataflow (Apache Beam)**. It comfortably sustains normal loads of 150,000+ Events Per Second (EPS) and auto-scales to absorb peak promotional traffic (e.g., Black Friday / Cyber Monday surges exceeding 500,000 EPS) without message loss or latency degradation.
 
-### 2.4 Actionable AI & Closed-Loop Diagnostics
-Rather than producing passive dashboards, the AI architecture utilizes **Large Language Models (Gemini on Vertex AI)** and **BigQuery ML** to produce tangible operational actions:
-* De-duplicating cascading alerts into single root-cause incidents.
+### 2.4 Actionable AI & Autonomous Incident Diagnostics
+Rather than producing passive dashboards, the AI architecture utilizes the **Autonomous Gemini SRE Agent** with **Supportive Function Calling Tools** to execute tangible operational workflows:
+* De-duplicating cascading alerts into unified incident signatures.
 * Retrieving matching Standard Operating Procedures (SOPs) from **Vertex AI Vector Search**.
 * Automatically executing non-destructive diagnostic queries and posting synthesized findings to ServiceNow tickets.
+* Capturing closed-loop SRE feedback upon ticket closure to continuously evaluate and tune prompts.
 
 ---
 
@@ -81,62 +82,58 @@ flowchart TD
         Splunk["📜 <b>Splunk</b><br/>• Enterprise Server Logs<br/>• POS & Middleware Logs<br/>• SIEM Security Events"]
     end
 
-    %% 2. INGESTION & DATA LAKEHOUSE (GCP)
-    subgraph GCP_Data["2. GCP Ingestion & Storage Core"]
+    %% 2. INGESTION, STORAGE & FEATURE PREPARATION (GCP)
+    subgraph GCP_Data["2. GCP Ingestion, Lakehouse & Feature Preparation"]
         direction TB
         PubSub["📬 <b>Cloud Pub/Sub</b><br/>High-throughput global event ingestion bus"]
-        Dataflow["⚙️ <b>Cloud Dataflow</b><br/>Stream deduplication, schema normalization & DLP filtering"]
-        BQ[("🗄️ <b>BigQuery Lakehouse</b><br/>Unified historical telemetry & baseline tables (Parquet)")]
+        Dataflow["⚙️ <b>Cloud Dataflow</b><br/>Alert storm windowing, OTel normalization & DLP filtering"]
+        BQ[("🗄️ <b>BigQuery Lakehouse & Feature Store</b><br/>Canonical telemetry, OPM materialized views & topology graphs")]
         VectorDB[("🔍 <b>Vertex AI Vector Search</b><br/>SOP Runbook embeddings & past incident catalog")]
     end
 
-    %% 3. AI INTELLIGENCE & REASONING LAYER (GCP)
-    subgraph GCP_AI["3. AIOps Intelligence & Reasoning Layer (Vertex AI)"]
+    %% 3. AUTONOMOUS AGENT REASONING CORE (GCP)
+    subgraph GCP_AI["3. Autonomous Gemini SRE Agent Core (Vertex AI)"]
         direction TB
-        BQML["📈 <b>Business Anomaly Engine (BQML)</b><br/>ARIMA_PLUS time-series models for silent outage detection"]
-        SemanticRouter["🧠 <b>Semantic Intelligence Router (LLM)</b><br/>Payload parsing, alert correlation & noise reduction"]
-        ContextAgent["🤖 <b>Context-Aware SRE Agent (Gemini)</b><br/>Multi-source RCA, Runbook retrieval & diagnostic execution"]
-        SOPEngine["⚡ <b>Automated SOP Execution Engine</b><br/>Read-only diagnostic executor & remediation coordinator"]
+        AgentCore["🤖 <b>Autonomous Gemini SRE Agent</b><br/>4-Phase Reasoning: Triage ➔ RCA ➔ Diagnostics ➔ ITSM Dispatch"]
+        
+        subgraph ToolSuite["Supportive Agentic Tool Suite"]
+            direction LR
+            RAGTool["🔍 <b>RAG Search Tool</b>"]
+            SandboxTool["⚡ <b>AST Sandbox Tool</b>"]
+            GraphTool["🕸️ <b>Topology Graph Tool</b>"]
+        end
+
+        Guardrails["🛡️ <b>Model Armor & Context Caching</b><br/>Prompt injection defense, secret scrubbing & schema caching"]
     end
 
     %% 4. ENTERPRISE ACTION & ITSM
     subgraph Action_Layer["4. Enterprise Action Layer (ServiceNow)"]
         direction TB
+        DispatchQueue["📬 <b>Cloud Tasks Dispatcher</b><br/>Rate-limited API shock absorber (Max 20 req/s)"]
         SNOW["🎫 <b>ServiceNow Incident Management</b><br/>• Direct SRE pod routing (bypassing L1)<br/>• Enriched with Root Cause & Splunk logs<br/>• Automated diagnostic findings attached"]
         SREPods["👨‍💻 <b>On-Call SRE Pods</b><br/>One-click runbook remediation & accelerated MTTR"]
-    end
-
-    %% 5. GITOPS & CI/CD
-    subgraph GitOps["5. CI/CD & GitOps"]
-        direction TB
-        GHA["🐙 <b>GitHub Actions</b><br/>Alerts as Code & SOP sync pipelines"]
+        EvalStore[("📊 <b>BigQuery Evaluation Store</b><br/>Closed-loop SRE feedback & accuracy tracking")]
     end
 
     %% INTER-LAYER DATA PIPELINE CONNECTIONS
-    Akamai -->|DataStream 2 Push| PubSub
-    Adobe -->|Streaming Clickstream / AEP| PubSub
-    Dyna -->|Problem Webhooks & OTel| PubSub
-    GCPOps -->|Log Sinks & GMP Scraper| PubSub
-    Splunk -->|HEC Event Forwarding| PubSub
-
+    Akamai & Adobe & Dyna & GCPOps & Splunk --> PubSub
     PubSub --> Dataflow
     Dataflow -->|Stream Clean Telemetry| BQ
-    Dataflow -->|Alert Events| SemanticRouter
 
-    BQ -->|Continuous Baseline Evaluation| BQML
-    BQML -->|Trigger Business Alert| SemanticRouter
+    Dataflow -->|Structured Incident Signature| AgentCore
+    BQ -->|Time-Series Anomaly Triggers| AgentCore
 
-    SemanticRouter -->|Correlated Alert Context| ContextAgent
-    VectorDB <-->|Query Relevant Runbook / SOP| ContextAgent
-    ContextAgent --> SOPEngine
+    AgentCore <--> ToolSuite
+    ToolSuite <-->|Vector Lookups| VectorDB
+    ToolSuite <-->|AST Safe Queries & Graph Traversal| BQ
+    AgentCore <--> Guardrails
 
-    SemanticRouter -->|Intelligent Ticket Creation & Pod Routing| SNOW
-    ContextAgent -->|Contextual Updates, RCA & Splunk Links| SNOW
-    SOPEngine <-->|Execute Diagnostics & Attach Output| SNOW
+    AgentCore -->|Enqueue Ticket Payload| DispatchQueue
+    DispatchQueue -->|HTTP POST with correlation_id| SNOW
     SNOW -->|Page On-Call Engineer| SREPods
-
-    GHA -.->|Deploy Monitoring Rules & Thresholds| Sources
-    GHA -.->|Sync SOP Markdown to Vector Index| VectorDB
+    
+    SNOW -.->|Incident Closure Feedback Webhook| EvalStore
+    EvalStore -.->|Continuous Prompt & Embedding Tuning| AgentCore
 
     %% STYLING DIRECTIVES
     classDef akamaiStyle fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C;
@@ -147,7 +144,6 @@ flowchart TD
     classDef gcpCoreStyle fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C;
     classDef gcpAIStyle fill:#EDE7F6,stroke:#303F9F,stroke-width:2px,color:#1A237E;
     classDef snowStyle fill:#E0F2F1,stroke:#00796B,stroke-width:2px,color:#004D40;
-    classDef gitopsStyle fill:#ECEFF1,stroke:#24292E,stroke-width:2px,color:#24292E;
 
     class Akamai akamaiStyle;
     class Adobe adobeStyle;
@@ -155,9 +151,8 @@ flowchart TD
     class GCPOps gcpOpsStyle;
     class Splunk splunkStyle;
     class PubSub,Dataflow,BQ,VectorDB gcpCoreStyle;
-    class BQML,SemanticRouter,ContextAgent,SOPEngine gcpAIStyle;
-    class SNOW,SREPods snowStyle;
-    class GHA gitopsStyle;
+    class AgentCore,ToolSuite,Guardrails gcpAIStyle;
+    class DispatchQueue,SNOW,SREPods,EvalStore snowStyle;
 ```
 
 ---
@@ -166,7 +161,7 @@ flowchart TD
 
 | Architecture Domain | Scope & Responsibilities | Deep-Dive Specification |
 | :--- | :--- | :--- |
-| **01. Ingestion Architecture** | Transport protocols, Pub/Sub topologies, Dataflow Beam pipelines, Cloud DLP scrubbing, dead-letter queues, and connector configs for all 5 observability tools. | [01_ingestion/README.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/README.md) |
+| **01. Ingestion Architecture** | Transport protocols, Pub/Sub topologies, Dataflow Beam pipelines, Cloud DLP scrubbing, dead-letter queues, and unified telemetry matrix for all 5 observability tools. | • [01_ingestion/README.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/README.md)<br/>• [source_telemetry_matrix.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/source_telemetry_matrix.md) |
 | **02. Storage, Lakehouse & Data Processing** | BigQuery dataset designs, table partitioning by ingestion time, Parquet on GCS cold storage tiering, stateful alert clustering, time-series resampling, and topology graph ETL. | • [lakehouse_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_architecture.md)<br/>• [data_processing_and_feature_store.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md) |
-| **03. Intelligence & Reasoning** | Vertex AI LLM routing models, Gemini SRE Agent, Vertex Vector Search for SOPs, and BigQuery ML `ARIMA_PLUS` models for silent outage detection. | [aiops_intelligence_layer.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/03_intelligence_and_reasoning/aiops_intelligence_layer.md) |
+| **03. Intelligence & Reasoning** | Autonomous Gemini SRE Agent runtime, 4-phase reasoning lifecycle, supportive function calling tools (RAG, AST Sandbox, Topology Graph), Model Armor guardrails, and context caching. | [aiops_intelligence_layer.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/03_intelligence_and_reasoning/aiops_intelligence_layer.md) |
 | **04. ITSM & Remediation** | ServiceNow Incident Management integration, bidirectional lifecycle synchronization, CMDB topological sync, and automated diagnostic execution. | [servicenow_integration.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_itsm_and_remediation/servicenow_integration.md) |

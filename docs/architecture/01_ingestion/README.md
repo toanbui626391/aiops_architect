@@ -7,19 +7,13 @@ Welcome to the **Ingestion Layer** documentation. This module covers the end-to-
 ## 📚 Core Architecture Documents
 
 1. ⚡ **[Ingestion Architecture & Streaming Pipelines (Master Guide)](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_architecture.md)**
-   - *First-Mile source extraction, Cloud Armor WAF & Cloud Run Ingress Gateway, Pub/Sub shock absorber fleet, 6-stage Dataflow (Beam) streaming engine, 2-tier Hybrid DLP, BigQuery/GCS partitioning, and automated ServiceNow alerting.*
+   - *First-Mile source extraction, Cloud Armor WAF & Cloud Run Ingress Gateway, Pub/Sub shock absorber fleet, Dataflow (Beam) streaming engine, Hybrid DLP, and BigQuery lakehouse streaming.*
 
-2. 📜 **[Data Contracts & Canonical Schemas](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)**
-   - *Common Event Format (CEF) / Avro canonical contracts, field mapping dictionaries, and Cloud DLP redaction policies.*
+2. 📊 **[SRE Observability Fleet - Source Telemetry Matrix](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/source_telemetry_matrix.md)**
+   - *Unified telemetry profiles and canonical field mappings for Akamai, Dynatrace, GCP Ops, Splunk, and Adobe Analytics.*
 
----
+3. 📜 **[Data Contracts & Canonical Schemas](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)**
+   - *Canonical schemas, OpenTelemetry mappings, and Cloud DLP PII/PCI scrubbing rules.*
 
-## 🌐 Source-Specific Connector Specifications
-
-Explore the dedicated ingestion guides for the SRE team's 5 primary observability tools:
-
-* 🌐 **[Akamai DataStream Connector](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/connectors/akamai_datastream.md)**: Edge access logs, TTFB metrics, and WAF security triggers.
-* ⚡ **[Dynatrace Ingestion Connector](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/connectors/dynatrace_ingestion.md)**: PurePath spans, Smartscape topology, and Davis AI problem webhooks.
-* ☁️ **[GCP Operations Ingestion Connector](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/connectors/gcp_ops_ingestion.md)**: GKE cluster logs, Cloud Audit Logs, and Managed Prometheus metric scraping.
-* 📜 **[Splunk HEC Connector](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/connectors/splunk_hec_ingestion.md)**: HTTP Event Collector forwarding, SIEM alerts, and forensic search proxying.
-* 🛍️ **[Adobe Analytics Streaming Connector](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/connectors/adobe_analytics_stream.md)**: Real-time clickstream events and Orders Per Minute (OPM) drop detection.
+4. 💡 **[Ingestion Best Practices Guide](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_best_practices.md)**
+   - *Ingestion SLIs, pipeline watermarks, sliding deduplication, and dead-letter queue recovery.*

@@ -15,20 +15,16 @@ docs/
     ├── 01_ingestion/
     │   ├── README.md                                  # ⚡ Ingestion Module Overview & Directory Index
     │   ├── ingestion_architecture.md                  # ⚙️ Ingestion Master Blueprint: First-Mile & Streaming Pipelines
+    │   ├── source_telemetry_matrix.md                 # 📊 SRE Observability Fleet: Profiles & Canonical Mappings (5 Tools)
     │   ├── data_contracts_and_schemas.md              # 📜 Canonical Event Schemas (CEF/JSON/Parquet) & Cloud DLP
-    │   └── connectors/
-    │       ├── akamai_datastream.md                   # 🌐 Akamai DataStream 2 (Edge/Security) Ingestion
-    │       ├── dynatrace_ingestion.md                 # ⚡ Dynatrace (APM/PurePath/Smartscape) Ingestion
-    │       ├── gcp_ops_ingestion.md                   # ☁️ GCP Operations Suite (GKE/Infrastructure) Ingestion
-    │       ├── splunk_hec_ingestion.md                # 📜 Splunk HEC (Enterprise Logs & SIEM) Ingestion
-    │       └── adobe_analytics_stream.md              # 🛍️ Adobe Analytics (Clickstream & Business KPIs) Ingestion
+    │   └── ingestion_best_practices.md                # 💡 Resilience, Deduplication, SLIs & Watermarking
     ├── 02_storage_and_lakehouse/
     │   ├── lakehouse_architecture.md                  # 🗄️ BigQuery Lakehouse, Parquet on GCS, Partitioning & Retention
     │   └── data_processing_and_feature_store.md       # ⚡ Stateful Alert Windowing, Feature Store, Graph ETL & RAG Vectorization
     ├── 03_intelligence_and_reasoning/
-    │   └── aiops_intelligence_layer.md                # 🧠 Semantic Router, Gemini SRE Agent & BQML Anomaly Detection
+    │   └── aiops_intelligence_layer.md                # 🤖 Autonomous Gemini SRE Agent, Supportive Tooling & Guardrails
     └── 04_itsm_and_remediation/
-        └── servicenow_integration.md                  # 🎫 ServiceNow ITSM Integration, CMDB Sync & Automated SOPs
+        └── servicenow_integration.md                  # 🎫 ServiceNow ITSM Integration, CMDB Sync, Dispatch & HITL Remediation
 ```
 
 ---
@@ -37,10 +33,10 @@ docs/
 
 ```mermaid
 flowchart TD
-    %% 1. SRE OBSERVABILITY ECOSYSTEM
-    subgraph Sources["1. SRE Observability Sources"]
+    %% 1. SRE OBSERVABILITY FLEET
+    subgraph Sources["1. SRE Observability Fleet"]
         direction LR
-        Akamai["🌐 <b>Akamai</b><br/>Edge & Security"]
+        Akamai["🌐 <b>Akamai</b><br/>Edge & Perimeter"]
         Adobe["🛍️ <b>Adobe Analytics</b><br/>Business Funnel"]
         Dyna["⚡ <b>Dynatrace</b><br/>APM & Trace Graph"]
         GCPOps["☁️ <b>GCP Ops Suite</b><br/>Cloud & GKE Infra"]
@@ -48,51 +44,57 @@ flowchart TD
     end
 
     %% 2. INGESTION & DATA LAKEHOUSE (GCP)
-    subgraph GCP_Data["2. GCP Ingestion & Unified Lakehouse"]
+    subgraph GCP_Data["2. GCP Ingestion, Lakehouse & Feature Store"]
         direction TB
         PubSub["📬 <b>Cloud Pub/Sub</b><br/>Global Ingestion Bus"]
         Dataflow["⚙️ <b>Cloud Dataflow + DLP</b><br/>Deduplication, Normalization & PII Scrubbing"]
-        BQ[("🗄️ <b>BigQuery Lakehouse</b><br/>Canonical Telemetry & Baseline Tables")]
+        BQ[("🗄️ <b>BigQuery Lakehouse & Feature Store</b><br/>Canonical Telemetry, OPM Baselines & Topology Graphs")]
         VectorDB[("🔍 <b>Vertex AI Vector Search</b><br/>SOP Runbook Embeddings Index")]
     end
 
-    %% 3. AIOps REASONING & INTELLIGENCE
-    subgraph GCP_AI["3. AIOps Intelligence Layer (Vertex AI)"]
+    %% 3. AUTONOMOUS AGENT REASONING CORE
+    subgraph GCP_AI["3. Autonomous Gemini SRE Agent Core (Vertex AI)"]
         direction TB
-        BQML["📈 <b>Business Anomaly Engine</b><br/>BQML ARIMA_PLUS Models"]
-        SemanticRouter["🧠 <b>Semantic Router</b><br/>Alert Correlation & De-noising"]
-        ContextAgent["🤖 <b>Context-Aware SRE Agent</b><br/>Gemini Multi-Source RCA"]
-        SOPEngine["⚡ <b>Automated SOP Engine</b><br/>Diagnostic Execution"]
+        AgentCore["🤖 <b>Autonomous Gemini SRE Agent</b><br/>4-Phase Reasoning: Triage ➔ RCA ➔ Diagnostics ➔ ITSM Dispatch"]
+        
+        subgraph ToolSuite["Supportive Agentic Tool Suite"]
+            direction LR
+            RAGTool["🔍 <b>RAG Search Tool</b>"]
+            SandboxTool["⚡ <b>AST Sandbox Tool</b>"]
+            GraphTool["🕸️ <b>Topology Graph Tool</b>"]
+        end
+
+        Guardrails["🛡️ <b>Model Armor & Context Caching</b><br/>Prompt injection defense & schema caching"]
     end
 
     %% 4. ACTION & ITSM
-    subgraph Action["4. Enterprise Action Layer"]
+    subgraph Action["4. Enterprise Action Layer (ServiceNow)"]
         direction TB
-        SNOW["🎫 <b>ServiceNow ITSM</b><br/>Smart Incident Routing & CMDB Sync"]
-        SRE["👨‍💻 <b>On-Call SRE Pods</b><br/>Accelerated MTTR & Remediation"]
+        DispatchQueue["📬 <b>Cloud Tasks Dispatcher</b><br/>Rate-limited API shock absorber (Max 20 req/s)"]
+        SNOW["🎫 <b>ServiceNow Incident Record</b><br/>Direct SRE Pod Routing, RCA & Attached Findings"]
+        SRE["👨‍💻 <b>On-Call SRE Pods</b><br/>One-click runbook remediation & accelerated MTTR"]
+        EvalStore[("📊 <b>BigQuery Evaluation Store</b><br/>Closed-loop SRE feedback & accuracy tracking")]
     end
 
     %% INTER-LAYER FLOWS
-    Akamai -->|DataStream 2 Push| PubSub
-    Adobe -->|AEP Stream Ingestion| PubSub
-    Dyna -->|Problem Webhooks & OTel| PubSub
-    GCPOps -->|Log Sinks & GMP Scraper| PubSub
-    Splunk -->|HEC Event Forwarding| PubSub
-
+    Akamai & Adobe & Dyna & GCPOps & Splunk --> PubSub
     PubSub --> Dataflow
     Dataflow -->|Stream Clean Telemetry| BQ
-    Dataflow -->|Alert Stream| SemanticRouter
 
-    BQ -->|Continuous Baseline Evaluation| BQML
-    BQML -->|Business Anomaly Alert| SemanticRouter
-    VectorDB <-->|Retrieve SOP Runbook| ContextAgent
-    SemanticRouter -->|Correlated Alert Context| ContextAgent
-    ContextAgent --> SOPEngine
+    Dataflow -->|Structured Incident Signature| AgentCore
+    BQ -->|Time-Series Anomaly Triggers| AgentCore
 
-    SemanticRouter -->|Direct SRE Pod Routing| SNOW
-    ContextAgent -->|Enriched RCA & Forensic Context| SNOW
-    SOPEngine <-->|Execute Diagnostics & Attach Output| SNOW
+    AgentCore <--> ToolSuite
+    ToolSuite <-->|Vector Lookups| VectorDB
+    ToolSuite <-->|AST Safe Queries & Graph Traversal| BQ
+    AgentCore <--> Guardrails
+
+    AgentCore -->|Enqueue Ticket Payload| DispatchQueue
+    DispatchQueue -->|HTTP POST with correlation_id| SNOW
     SNOW -->|Page On-Call Engineer| SRE
+    
+    SNOW -.->|Incident Closure Feedback Webhook| EvalStore
+    EvalStore -.->|Continuous Prompt & Embedding Tuning| AgentCore
 
     %% STYLING
     classDef s1 fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C;
@@ -110,8 +112,8 @@ flowchart TD
     class GCPOps s4;
     class Splunk s5;
     class PubSub,Dataflow,BQ,VectorDB gcpData;
-    class BQML,SemanticRouter,ContextAgent,SOPEngine gcpAI;
-    class SNOW,SRE snow;
+    class AgentCore,ToolSuite,Guardrails gcpAI;
+    class DispatchQueue,SNOW,SRE,EvalStore snow;
 ```
 
 ---
@@ -120,7 +122,7 @@ flowchart TD
 
 | Role / Focus Area | Recommended Reading Path |
 | :--- | :--- |
-| **Enterprise AI Architects** | 1. [aiops_platform_overview.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/00_overview/aiops_platform_overview.md)<br/>2. [aiops_intelligence_layer.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/03_intelligence_and_reasoning/aiops_intelligence_layer.md)<br/>3. [data_processing_and_feature_store.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md)<br/>4. [lakehouse_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_architecture.md) |
-| **Data & Pipeline Engineers** | 1. [ingestion_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_architecture.md)<br/>2. [data_contracts_and_schemas.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>3. [data_processing_and_feature_store.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md)<br/>4. [lakehouse_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/lakehouse_architecture.md) |
-| **SRE & Tool Administrators** | 1. [Connectors Directory](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/connectors/)<br/>2. [servicenow_integration.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_itsm_and_remediation/servicenow_integration.md)<br/>3. [ingestion_best_practices.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_best_practices.md) |
-| **Security & Compliance** | 1. [data_contracts_and_schemas.md#dlp](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>2. [ingestion_architecture.md#security](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_architecture.md) |
+| **Enterprise AI Architects** | 1. [aiops_platform_overview.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/00_overview/aiops_platform_overview.md)<br/>2. [aiops_intelligence_layer.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/03_intelligence_and_reasoning/aiops_intelligence_layer.md)<br/>3. [data_processing_and_feature_store.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md)<br/>4. [servicenow_integration.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_itsm_and_remediation/servicenow_integration.md) |
+| **Data & Pipeline Engineers** | 1. [ingestion_architecture.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_architecture.md)<br/>2. [source_telemetry_matrix.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/source_telemetry_matrix.md)<br/>3. [data_contracts_and_schemas.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>4. [data_processing_and_feature_store.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md) |
+| **SRE & Operations Engineers** | 1. [source_telemetry_matrix.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/source_telemetry_matrix.md)<br/>2. [servicenow_integration.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/04_itsm_and_remediation/servicenow_integration.md)<br/>3. [ingestion_best_practices.md](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_best_practices.md) |
+| **Security & Compliance** | 1. [data_contracts_and_schemas.md#dlp](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)<br/>2. [aiops_intelligence_layer.md#guardrails](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/03_intelligence_and_reasoning/aiops_intelligence_layer.md) |

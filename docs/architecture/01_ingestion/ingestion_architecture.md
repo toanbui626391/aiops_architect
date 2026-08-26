@@ -187,12 +187,8 @@ The platform team continuously monitors pipeline health in **Cloud Monitoring**:
 
 ---
 
-## 5. Sub-Modules & Connector References
-
-For granular implementation guides and code samples for each source connector:
-* [Akamai DataStream Connector](connectors/akamai_datastream.md)
-* [Dynatrace Ingestion Connector](connectors/dynatrace_ingestion.md)
-* [GCP Operations Ingestion Connector](connectors/gcp_ops_ingestion.md)
-* [Splunk HEC Connector](connectors/splunk_hec_ingestion.md)
-* [Adobe Analytics Streaming Connector](connectors/adobe_analytics_stream.md)
-* [Ingestion Best Practices Guide](ingestion_best_practices.md)
+## 5. Related Architecture Specifications
+* [SRE Observability Fleet - Source Telemetry Matrix](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/source_telemetry_matrix.md)
+* [Data Contracts & Canonical Schemas](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/data_contracts_and_schemas.md)
+* [Ingestion Best Practices Guide](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/01_ingestion/ingestion_best_practices.md)
+* [Data Processing & AI Feature Store](file:///c:/Users/ToanBX/dev/personal/aiops_architect/docs/architecture/02_storage_and_lakehouse/data_processing_and_feature_store.md)
